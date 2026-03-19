@@ -8,6 +8,11 @@ import com.kortexa.kortexa_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.kortexa.kortexa_backend.dto.LoginRequest;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.Map;
 
@@ -17,6 +22,9 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService; // Inject this
+    private final AuthenticationManager authenticationManager; // Inject this
+    private final UserDetailsService userDetailsService; // Inject this
 
     public Map<String, String> register(RegisterRequest request) {
         // 1. Check if email already exists
@@ -39,5 +47,35 @@ public class AuthService {
         userRepository.save(user);
 
         return Map.of("message", "User registered successfully", "email", user.getEmail());
+    }
+
+    public Map<String, String> login(LoginRequest request) {
+        // 1. Authenticate the user (Spring Security will check the password hash)
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.email(),
+                        request.password()
+                )
+        );
+
+        // 2. Fetch the user details to generate the token
+        var user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // 3. Build a Spring Security UserDetails object
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
+                .password(user.getPasswordHash())
+                .roles(user.getRole().name())
+                .build();
+
+        // 4. Generate the token
+        String jwtToken = jwtService.generateToken(userDetails);
+
+        return Map.of(
+                "token", jwtToken,
+                "email", user.getEmail(),
+                "role", user.getRole().name()
+        );
     }
 }
