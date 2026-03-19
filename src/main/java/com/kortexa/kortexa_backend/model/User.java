@@ -3,6 +3,7 @@ package com.kortexa.kortexa_backend.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class User {
 
     @NotBlank(message = "Password is required")
     @Column(name = "password_hash", nullable = false)
+    @JsonIgnore // NEW: This permanently hides the password from all API responses!
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)

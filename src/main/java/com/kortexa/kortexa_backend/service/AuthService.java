@@ -27,6 +27,12 @@ public class AuthService {
     private final UserDetailsService userDetailsService; // Inject this
 
     public Map<String, String> register(RegisterRequest request) {
+
+        // NEW SECURITY PATCH: Block Privilege Escalation
+        if (request.role() == Role.ADMIN) {
+            throw new SecurityException("Security Violation: Cannot register an account with ADMIN privileges via the public API.");
+        }
+
         // 1. Check if email already exists
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw new IllegalArgumentException("Email is already registered");

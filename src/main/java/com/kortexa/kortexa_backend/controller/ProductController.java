@@ -1,0 +1,48 @@
+package com.kortexa.kortexa_backend.controller;
+
+import com.kortexa.kortexa_backend.dto.ProductRequest;
+import com.kortexa.kortexa_backend.model.Product;
+import com.kortexa.kortexa_backend.service.ProductService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/products")
+@RequiredArgsConstructor
+public class ProductController {
+
+    private final ProductService productService;
+
+    // POST /api/products -> Creates a new product
+    @PostMapping
+    public ResponseEntity<?> createProduct(
+            @Valid @RequestBody ProductRequest request,
+            Authentication authentication
+    ) {
+        try {
+            // authentication.getName() contains the email from the JWT Subject!
+            Product product = productService.createProduct(request, authentication.getName());
+            return ResponseEntity.ok(product);
+        } catch (SecurityException | IllegalArgumentException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // GET /api/products -> Public catalog of all products
+    @GetMapping
+    public ResponseEntity<List<Product>> getAllProducts() {
+        return ResponseEntity.ok(productService.getAllProducts());
+    }
+
+    // GET /api/products/my-store -> Vendors can view only their own inventory
+    @GetMapping("/my-store")
+    public ResponseEntity<List<Product>> getMyProducts(Authentication authentication) {
+        return ResponseEntity.ok(productService.getMyProducts(authentication.getName()));
+    }
+}
