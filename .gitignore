@@ -1,0 +1,38 @@
+### Java/Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.restoreBackup
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+# If you use Maven Wrapper:
+!.mvn/wrapper/maven-wrapper.jar
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+# Note: We keep the .idea folder out to avoid sharing your local Run Configurations
+
+### VS Code ###
+.vscode/
+*.code-workspace
+.history/
+
+### Logs ###
+*.log
+logs/
+
+### Operating System ###
+.DS_Store
+Thumbs.db
+
+### Local Configuration (SENSITIVE) ###
+# If you ever create a local-only override file
+application.yml
+.env
