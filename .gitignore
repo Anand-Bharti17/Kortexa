@@ -34,5 +34,5 @@ Thumbs.db
 
 ### Local Configuration (SENSITIVE) ###
 # If you ever create a local-only override file
-application.yml
+application.yaml
 .env

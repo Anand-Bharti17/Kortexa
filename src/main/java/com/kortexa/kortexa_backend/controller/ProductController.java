@@ -2,6 +2,7 @@ package com.kortexa.kortexa_backend.controller;
 
 import com.kortexa.kortexa_backend.dto.ProductRequest;
 import com.kortexa.kortexa_backend.model.Product;
+import com.kortexa.kortexa_backend.service.AiService;
 import com.kortexa.kortexa_backend.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,16 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+    private final AiService aiService; // Add this to your constructor/RequiredArgsConstructor
+
+    @GetMapping("/generate-description")
+    public ResponseEntity<Map<String, String>> suggestDescription(
+            @RequestParam String name,
+            @RequestParam String category) {
+
+        String description = aiService.generateProductDescription(name, category);
+        return ResponseEntity.ok(Map.of("suggestedDescription", description));
+    }
 
     // POST /api/products -> Creates a new product
     @PostMapping
