@@ -24,9 +24,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        // NEW: Lock down admin routes to ADMIN role only
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // 1. SPECIFIC RULE: Allow everyone to browse the store (Must go FIRST)
+                        .requestMatchers("/api/products/store").permitAll()
+
+                        // 2. GENERAL RULE: Require Vendor for all other product endpoints (create, edit, AI)
+                        .requestMatchers("/api/products/**").hasAuthority("VENDOR")
+
+                        // 3. Admin rules, etc...
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+
+                        // 4. Catch-all: Everything else requires you to be logged in
                         .anyRequest().authenticated()
                 )
                 // NEW: Tell Spring NOT to create a session (we are using JWTs)

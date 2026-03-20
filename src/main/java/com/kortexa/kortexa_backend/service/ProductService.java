@@ -9,6 +9,11 @@ import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import java.math.BigDecimal;
 
 import java.util.List;
 
@@ -57,5 +62,18 @@ public class ProductService {
         User vendor = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return productRepository.findByVendorId(vendor.getId());
+    }
+
+    public Page<Product> browsePublicStore(String search, String category, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String sortBy) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).descending());
+
+        // Safely format the search string in Java to prevent PostgreSQL type confusion
+        String formattedSearch = (search != null && !search.trim().isEmpty())
+                ? "%" + search.toLowerCase() + "%"
+                : null;
+
+        // Pass the safely formatted string to the repository
+        return productRepository.searchAndFilterProducts(formattedSearch, category, minPrice, maxPrice, pageable);
     }
 }

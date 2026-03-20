@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import java.math.BigDecimal;
 
 import java.util.List;
 import java.util.Map;
@@ -55,5 +57,19 @@ public class ProductController {
     @GetMapping("/my-store")
     public ResponseEntity<List<Product>> getMyProducts(Authentication authentication) {
         return ResponseEntity.ok(productService.getMyProducts(authentication.getName()));
+    }
+
+    @GetMapping("/store")
+    public ResponseEntity<Page<Product>> browseStore(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy) {
+
+        Page<Product> products = productService.browsePublicStore(search, category, minPrice, maxPrice, page, size, sortBy);
+        return ResponseEntity.ok(products);
     }
 }
