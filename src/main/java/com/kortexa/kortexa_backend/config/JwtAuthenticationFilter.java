@@ -53,12 +53,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtService.isTokenValid(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
-                        null,
-                        userDetails.getAuthorities()
+                        null, // Credentials (usually null for JWT)
+                        userDetails.getAuthorities() // <--- IF THIS IS MISSING, YOU GET A 403!
                 );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // 5. Update the Security Context so Spring knows the user is logged in
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }

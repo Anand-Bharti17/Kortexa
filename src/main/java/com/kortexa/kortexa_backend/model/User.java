@@ -5,8 +5,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -49,5 +53,12 @@ public class User {
         if (this.status == null) {
             this.status = AccountStatus.ACTIVE;
         }
+    }
+
+
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // This must NOT have "ROLE_" attached to it since your SecurityConfig
+        // uses .hasAuthority("VENDOR")
+        return List.of(new SimpleGrantedAuthority(role.name()));
     }
 }

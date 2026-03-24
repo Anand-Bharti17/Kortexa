@@ -23,6 +23,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         // 1. SPECIFIC RULE: Allow everyone to browse the store (Must go FIRST)
                         .requestMatchers("/api/products/store").permitAll()

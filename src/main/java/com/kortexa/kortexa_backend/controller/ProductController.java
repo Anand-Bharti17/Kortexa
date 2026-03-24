@@ -3,6 +3,7 @@ package com.kortexa.kortexa_backend.controller;
 import com.kortexa.kortexa_backend.dto.ProductRequest;
 import com.kortexa.kortexa_backend.model.Product;
 import com.kortexa.kortexa_backend.service.AiService;
+import com.kortexa.kortexa_backend.service.ImageUploadService;
 import com.kortexa.kortexa_backend.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 import java.math.BigDecimal;
 
 import java.util.List;
@@ -22,6 +26,19 @@ public class ProductController {
 
     private final ProductService productService;
     private final AiService aiService; // Add this to your constructor/RequiredArgsConstructor
+    // Add this to your dependencies at the top
+    private final ImageUploadService imageUploadService;
+
+    // Add this new endpoint
+    @PostMapping("/upload-image")
+    public ResponseEntity<Map<String, String>> uploadProductImage(@RequestParam("file") MultipartFile file) {
+        try {
+            String imageUrl = imageUploadService.uploadImage(file);
+            return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to upload image"));
+        }
+    }
 
     @GetMapping("/generate-description")
     public ResponseEntity<Map<String, String>> suggestDescription(
