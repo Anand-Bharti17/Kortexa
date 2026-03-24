@@ -51,10 +51,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // 4. Validate the token against the database user
             if (jwtService.isTokenValid(jwt, userDetails)) {
+
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
-                        null, // Credentials (usually null for JWT)
-                        userDetails.getAuthorities() // <--- IF THIS IS MISSING, YOU GET A 403!
+                        null,
+                        userDetails.getAuthorities() // <-- IF THIS IS MISSING, YOU GET A 403!
                 );
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

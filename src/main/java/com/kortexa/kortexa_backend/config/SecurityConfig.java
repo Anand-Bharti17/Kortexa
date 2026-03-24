@@ -3,6 +3,7 @@ package com.kortexa.kortexa_backend.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -25,16 +26,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
-                        // 1. SPECIFIC RULE: Allow everyone to browse the store (Must go FIRST)
                         .requestMatchers("/api/products/store").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
 
-                        // 2. GENERAL RULE: Require Vendor for all other product endpoints (create, edit, AI)
-                        .requestMatchers("/api/products/**").hasAuthority("VENDOR")
+                        // 1. CUSTOMER: Use hasRole instead of hasAuthority
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/product/**").hasRole("CUSTOMER")
 
-                        // 3. Admin rules, etc...
-                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                        // 2. VENDOR: Use hasRole instead of hasAuthority
+                        .requestMatchers("/api/products/**").hasRole("VENDOR")
 
-                        // 4. Catch-all: Everything else requires you to be logged in
+                        // 3. ADMIN
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 // NEW: Tell Spring NOT to create a session (we are using JWTs)
