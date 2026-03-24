@@ -1,8 +1,7 @@
 package com.kortexa.kortexa_backend.service;
 
-import com.kortexa.kortexa_backend.dto.OrderItemRequest;
-import com.kortexa.kortexa_backend.dto.OrderRequest;
 import com.kortexa.kortexa_backend.model.*;
+import com.kortexa.kortexa_backend.repository.CartRepository;
 import com.kortexa.kortexa_backend.repository.OrderRepository;
 import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
@@ -22,60 +21,69 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
 
-    @Transactional // Ensures the whole process succeeds, or rolls back entirely
-    public Order placeOrder(OrderRequest request, String customerEmail) {
+    // NEW: Inject the CartRepository so we can read and empty the cart
+    private final CartRepository cartRepository;
 
-        // 1. Find the customer
+    @Transactional
+    public Order checkoutCart(String customerEmail) {
+        // 1. Find the customer and their cart
         User customer = userRepository.findByEmail(customerEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
 
-        // 2. Initialize an empty Order
+        Cart cart = cartRepository.findByUserEmail(customerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Cart not found"));
+
+        if (cart.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Cannot checkout an empty cart!");
+        }
+
+        // 2. Initialize the permanent Order
         Order order = Order.builder()
                 .customer(customer)
                 .status(OrderStatus.PENDING)
+                .totalAmount(cart.getTotalPrice()) // We already calculated this in the cart!
                 .items(new ArrayList<>())
                 .build();
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
+        // 3. Convert CartItems to OrderItems
+        for (CartItem cartItem : cart.getItems()) {
+            Product product = cartItem.getProduct();
 
-        // 3. Process each item in the shopping cart
-        for (OrderItemRequest itemRequest : request.items()) {
-            Product product = productRepository.findById(itemRequest.productId())
-                    .orElseThrow(() -> new IllegalArgumentException("Product not found with ID: " + itemRequest.productId()));
-
-            // Check if we have enough stock!
-            if (product.getStockQuantity() < itemRequest.quantity()) {
+            // Check if we still have enough stock
+            if (product.getStockQuantity() < cartItem.getQuantity()) {
                 throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
             }
 
-            // Deduct the inventory
-            product.setStockQuantity(product.getStockQuantity() - itemRequest.quantity());
+            // Deduct the inventory from the actual store
+            product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
             productRepository.save(product);
 
-            // Create the OrderItem
+            // Create the permanent receipt item
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
-                    .quantity(itemRequest.quantity())
-                    .priceAtPurchase(product.getPrice()) // Lock in the current price
+                    .quantity(cartItem.getQuantity())
+                    .priceAtPurchase(product.getPrice()) // Lock in the current price!
                     .build();
 
             order.getItems().add(orderItem);
-
-            // Calculate subtotal and add to grand total
-            BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(itemRequest.quantity()));
-            totalAmount = totalAmount.add(subtotal);
         }
 
-        order.setTotalAmount(totalAmount);
+        // 4. Save the order (CascadeType.ALL saves the OrderItems too)
+        Order savedOrder = orderRepository.save(order);
 
-        // 4. Save the order (CascadeType.ALL will automatically save the OrderItems too!)
-        return orderRepository.save(order);
+        // 5. THE MAGIC STEP: Empty the shopping cart now that they bought it!
+        cart.getItems().clear();
+        cart.setTotalPrice(BigDecimal.ZERO);
+        cartRepository.save(cart);
+
+        return savedOrder;
     }
 
     public List<Order> getCustomerOrders(String customerEmail) {
         User customer = userRepository.findByEmail(customerEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
-        return orderRepository.findByCustomerId(customer.getId());
+        // Assuming you have this custom query in your OrderRepository!
+        return orderRepository.findByCustomer_IdOrderByOrderDateDesc(customer.getId());
     }
 }

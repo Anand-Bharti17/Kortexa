@@ -8,6 +8,6 @@ import java.util.List;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    // Find all orders placed by a specific customer
-    List<Order> findByCustomerId(Long customerId);
+    // Finds all orders for a specific customer, showing the newest ones first
+    List<Order> findByCustomer_IdOrderByOrderDateDesc(Long customerId);
 }
