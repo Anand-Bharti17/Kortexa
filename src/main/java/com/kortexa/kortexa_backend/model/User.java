@@ -56,34 +56,37 @@ public class User implements UserDetails { // <-- MUST IMPLEMENT UserDetails
 
     // --- SPRING SECURITY USERDETAILS METHODS ---
 
+    @JsonIgnore
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Using standard Spring Security "ROLE_" convention to prevent mismatches
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
+    @JsonIgnore
     @Override
     public String getPassword() {
-        return passwordHash; // Tell Spring which field holds the password
+        return passwordHash;
     }
 
+    @JsonIgnore
     @Override
     public String getUsername() {
-        return email; // Tell Spring which field is the username
+        return email;
     }
 
+    @JsonIgnore
     @Override
     public boolean isAccountNonExpired() { return true; }
 
+    @JsonIgnore
     @Override
     public boolean isAccountNonLocked() { return true; }
 
+    @JsonIgnore
     @Override
     public boolean isCredentialsNonExpired() { return true; }
 
+    @JsonIgnore
     @Override
-    public boolean isEnabled() {
-        // Optional: You can make this 'return true;' if you don't want to enforce status checks yet!
-        return true;
-    }
+    public boolean isEnabled() { return true; }
 }
