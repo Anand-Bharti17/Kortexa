@@ -5,6 +5,7 @@ import com.kortexa.kortexa_backend.model.Review;
 import com.kortexa.kortexa_backend.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,6 +13,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
@@ -25,7 +27,7 @@ public class ReviewController {
             @PathVariable Long productId,
             @Valid @RequestBody ReviewRequest request,
             Principal principal) { // Principal securely holds the email from the JWT
-
+        log.debug("Add review request: user={}, productId={}", principal.getName(), productId);
         Review savedReview = reviewService.addReview(productId, principal.getName(), request);
         return ResponseEntity.ok(savedReview);
     }
@@ -33,12 +35,14 @@ public class ReviewController {
     // 2. Get all reviews for a product (Public - anyone can read reviews)
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<Review>> getProductReviews(@PathVariable Long productId) {
+        log.debug("Get reviews request: productId={}", productId);
         return ResponseEntity.ok(reviewService.getProductReviews(productId));
     }
 
     // 3. Get the average rating (Public)
     @GetMapping("/product/{productId}/average")
     public ResponseEntity<Map<String, Double>> getAverageRating(@PathVariable Long productId) {
+        log.debug("Get average rating request: productId={}", productId);
         Double average = reviewService.getProductAverageRating(productId);
         return ResponseEntity.ok(Map.of("averageRating", average));
     }

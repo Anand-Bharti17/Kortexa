@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -37,13 +39,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 1. Check if the request has a "Bearer" token in the header
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.debug("No Bearer token found for request: {} {}", request.getMethod(), request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
 
         // 2. Extract the token (everything after "Bearer ")
         jwt = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(jwt);
+        try {
+            userEmail = jwtService.extractUsername(jwt);
+        } catch (Exception e) {
+            log.warn("Failed to extract username from JWT for request: {} {} - {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // 3. If there's an email and the user isn't already authenticated...
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -60,6 +69,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                log.debug("JWT authentication successful for user: {}, request: {} {}", userEmail, request.getMethod(), request.getRequestURI());
+            } else {
+                log.warn("Invalid JWT token for user: {}, request: {} {}", userEmail, request.getMethod(), request.getRequestURI());
             }
         }
         filterChain.doFilter(request, response);

@@ -7,6 +7,7 @@ import com.kortexa.kortexa_backend.service.ImageUploadService;
 import com.kortexa.kortexa_backend.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
@@ -36,6 +38,7 @@ public class ProductController {
             String imageUrl = imageUploadService.uploadImage(file);
             return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
         } catch (IOException e) {
+            log.error("Product image upload failed for file='{}': {}", file.getOriginalFilename(), e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of("error", "Failed to upload image"));
         }
     }
@@ -60,6 +63,7 @@ public class ProductController {
             Product product = productService.createProduct(request, authentication.getName());
             return ResponseEntity.ok(product);
         } catch (SecurityException | IllegalArgumentException e) {
+            log.warn("Product creation denied for user={}: {}", authentication.getName(), e.getMessage());
             return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }

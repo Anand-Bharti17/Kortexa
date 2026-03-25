@@ -7,6 +7,7 @@ import com.kortexa.kortexa_backend.model.AccountStatus;
 import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
@@ -28,14 +30,15 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // Only run this if the store is mostly empty!
         if (productRepository.count() > 5) {
-            System.out.println("Database already populated. Skipping Data Seeder.");
+            log.info("Database already populated (>5 products). Skipping Data Seeder.");
             return;
         }
 
-        System.out.println("Generating 50 dummy products...");
+        log.info("Starting Data Seeder: generating 50 dummy products...");
 
         // 1. Make sure we have a Vendor to own these products
         User vendor = userRepository.findByEmail("megastore@kortexa.com").orElseGet(() -> {
+            log.info("Seed vendor not found. Creating dummy vendor: megastore@kortexa.com");
             User newVendor = User.builder()
                     .email("megastore@kortexa.com")
                     .passwordHash(passwordEncoder.encode("password123"))
@@ -76,6 +79,6 @@ public class DataSeeder implements CommandLineRunner {
 
         // 4. Save all 50 to the database at once!
         productRepository.saveAll(dummyProducts);
-        System.out.println("Successfully seeded 50 products into the database!");
+        log.info("Data Seeder completed: 50 products seeded successfully into the database.");
     }
 }

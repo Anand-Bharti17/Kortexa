@@ -3,12 +3,14 @@ package com.kortexa.kortexa_backend.controller;
 import com.kortexa.kortexa_backend.model.User;
 import com.kortexa.kortexa_backend.service.AdminService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -26,6 +28,7 @@ public class AdminController {
         try {
             return ResponseEntity.ok(adminService.approveVendor(vendorId));
         } catch (IllegalArgumentException e) {
+            log.warn("Vendor approval request rejected: vendorId={}, reason={}", vendorId, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

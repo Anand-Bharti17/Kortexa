@@ -6,6 +6,7 @@ import com.kortexa.kortexa_backend.repository.OrderRepository;
 import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -27,16 +29,27 @@ public class OrderService {
 
     @Transactional
     public Order checkoutCart(String customerEmail) {
+        log.info("Checkout initiated for customer: {}", customerEmail);
+
         // 1. Find the customer and their cart
         User customer = userRepository.findByEmail(customerEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+                .orElseThrow(() -> {
+                    log.warn("Checkout failed - customer not found: {}", customerEmail);
+                    return new IllegalArgumentException("Customer not found");
+                });
 
         Cart cart = cartRepository.findByUserEmail(customerEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Cart not found"));
+                .orElseThrow(() -> {
+                    log.warn("Checkout failed - cart not found for customer: {}", customerEmail);
+                    return new IllegalArgumentException("Cart not found");
+                });
 
         if (cart.getItems().isEmpty()) {
+            log.warn("Checkout failed - cart is empty for customer: {}", customerEmail);
             throw new IllegalArgumentException("Cannot checkout an empty cart!");
         }
+
+        log.debug("Cart contains {} item(s) for customer: {}", cart.getItems().size(), customerEmail);
 
         // 2. Initialize the permanent Order
         Order order = Order.builder()
@@ -52,11 +65,15 @@ public class OrderService {
 
             // Check if we still have enough stock
             if (product.getStockQuantity() < cartItem.getQuantity()) {
+                log.warn("Checkout failed - insufficient stock: productId={}, productName='{}', available={}, requested={}",
+                        product.getId(), product.getName(), product.getStockQuantity(), cartItem.getQuantity());
                 throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
             }
 
             // Deduct the inventory from the actual store
-            product.setStockQuantity(product.getStockQuantity() - cartItem.getQuantity());
+            int updatedStock = product.getStockQuantity() - cartItem.getQuantity();
+            log.debug("Deducting stock: productId={}, qty={}, remainingStock={}", product.getId(), cartItem.getQuantity(), updatedStock);
+            product.setStockQuantity(updatedStock);
             productRepository.save(product);
 
             // Create the permanent receipt item
@@ -72,22 +89,31 @@ public class OrderService {
 
         // 4. Save the order (CascadeType.ALL saves the OrderItems too)
         Order savedOrder = orderRepository.save(order);
+        log.info("Order created successfully: orderId={}, customer={}, total={}", savedOrder.getId(), customerEmail, savedOrder.getTotalAmount());
 
         // 5. THE MAGIC STEP: Empty the shopping cart now that they bought it!
         cart.getItems().clear();
         cart.setTotalPrice(BigDecimal.ZERO);
         cartRepository.save(cart);
+        log.debug("Cart cleared for customer: {}", customerEmail);
 
         // 6. THE NEW STEP: Send the confirmation email!
+        log.info("Sending order confirmation email to: {}", customerEmail);
         emailService.sendOrderConfirmation(customerEmail, savedOrder.getId(), savedOrder.getTotalAmount().toString());
 
         return savedOrder;
     }
 
     public List<Order> getCustomerOrders(String customerEmail) {
+        log.debug("Fetching order history for customer: {}", customerEmail);
         User customer = userRepository.findByEmail(customerEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+                .orElseThrow(() -> {
+                    log.warn("Order history fetch failed - customer not found: {}", customerEmail);
+                    return new IllegalArgumentException("Customer not found");
+                });
         // Assuming you have this custom query in your OrderRepository!
-        return orderRepository.findByCustomer_IdOrderByOrderDateDesc(customer.getId());
+        List<Order> orders = orderRepository.findByCustomer_IdOrderByOrderDateDesc(customer.getId());
+        log.debug("Found {} order(s) for customer: {}", orders.size(), customerEmail);
+        return orders;
     }
 }
