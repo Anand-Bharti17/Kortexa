@@ -4,11 +4,13 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 
 import java.util.TimeZone;
 
 @Slf4j
 @SpringBootApplication
+@EnableCaching // <-- Required to activate the caching engine
 public class KortexaBackendApplication {
 
 	@PostConstruct

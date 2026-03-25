@@ -9,6 +9,7 @@ import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -64,6 +65,9 @@ public class ProductService {
         return saved;
     }
 
+    // This annotation tells Spring: "Before running this method, check Redis for a key called 'products'.
+    // If it's there, return it immediately! If not, run the database query, and save the result to Redis."
+    @Cacheable(value = "products") // <-- Caches the output in Redis
     public List<Product> getAllProducts() {
         log.debug("Fetching all products from catalog");
         return productRepository.findAll();

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # 1. THE DATABASE: PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: kortexa-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password  # Change this if your local application.yml uses a different password!
+      POSTGRES_DB: kortexa
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # 2. THE CACHE: Redis
+  redis:
+    image: redis:alpine
+    container_name: kortexa-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # 3. THE BROKER: Apache Kafka (Official Image - KRaft mode)
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: kortexa-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    restart: always
+
+# This ensures your database isn't wiped clean every time you turn Docker off!
+volumes:
+  postgres_data:
