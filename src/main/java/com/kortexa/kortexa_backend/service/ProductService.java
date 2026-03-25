@@ -65,19 +65,26 @@ public class ProductService {
         return saved;
     }
 
-    // This annotation tells Spring: "Before running this method, check Redis for a key called 'products'.
-    // If it's there, return it immediately! If not, run the database query, and save the result to Redis."
-    @Cacheable(value = "products") // <-- Caches the output in Redis
+    // @Cacheable checks Redis first. If cache HIT → method body is skipped (no log below will appear).
+    // If cache MISS → method body runs, DB is queried, and result is stored in Redis.
+    @Cacheable(value = "products") // <-- Caches the output in Redis under key 'products'
     public List<Product> getAllProducts() {
-        log.debug("Fetching all products from catalog");
-        return productRepository.findAll();
+        log.info("[CACHE MISS] 'products' not found in Redis — querying database for full product catalog");
+        List<Product> products = productRepository.findAll();
+        log.info("[DB QUERY] Retrieved {} products from database; result will be cached in Redis", products.size());
+        return products;
     }
 
     public List<Product> getMyProducts(String userEmail) {
-        log.debug("Fetching products for vendor: {}", userEmail);
+        log.debug("Fetching store inventory for vendor: email={}", userEmail);
         User vendor = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        return productRepository.findByVendorId(vendor.getId());
+                .orElseThrow(() -> {
+                    log.warn("getMyProducts failed - vendor not found: email={}", userEmail);
+                    return new IllegalArgumentException("User not found");
+                });
+        List<Product> products = productRepository.findByVendorId(vendor.getId());
+        log.debug("Vendor store inventory fetched: email={}, productCount={}", userEmail, products.size());
+        return products;
     }
 
     public Page<Product> browsePublicStore(String search, String category, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String sortBy) {

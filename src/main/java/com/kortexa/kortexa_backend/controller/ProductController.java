@@ -68,9 +68,10 @@ public class ProductController {
         }
     }
 
-    // GET /api/products -> Public catalog of all products
+    // GET /api/products -> Public catalog of all products (Redis-cached via @Cacheable in ProductService)
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
+        log.debug("GET /api/products - fetching full product catalog (may be served from Redis cache)");
         return ResponseEntity.ok(productService.getAllProducts());
     }
 

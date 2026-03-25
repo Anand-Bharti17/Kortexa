@@ -34,14 +34,24 @@ public class OrderService {
         log.info("Checkout initiated for customer: {}", customerEmail);
 
         User customer = userRepository.findByEmail(customerEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+                .orElseThrow(() -> {
+                    log.warn("Checkout failed - customer not found: email={}", customerEmail);
+                    return new IllegalArgumentException("Customer not found");
+                });
 
         Cart cart = cartRepository.findByUserEmail(customerEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Cart not found"));
+                .orElseThrow(() -> {
+                    log.warn("Checkout failed - cart not found for customer: email={}", customerEmail);
+                    return new IllegalArgumentException("Cart not found");
+                });
 
         if (cart.getItems().isEmpty()) {
+            log.warn("Checkout aborted - cart is empty for customer: email={}", customerEmail);
             throw new IllegalArgumentException("Cannot checkout an empty cart!");
         }
+
+        log.info("Cart found for checkout: email={}, itemCount={}, total={}",
+                customerEmail, cart.getItems().size(), cart.getTotalPrice());
 
         Order order = Order.builder()
                 .customer(customer)
@@ -54,12 +64,16 @@ public class OrderService {
             Product product = cartItem.getProduct();
 
             if (product.getStockQuantity() < cartItem.getQuantity()) {
+                log.warn("Checkout failed - insufficient stock: productId={}, productName='{}', requested={}, available={}",
+                        product.getId(), product.getName(), cartItem.getQuantity(), product.getStockQuantity());
                 throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
             }
 
             int updatedStock = product.getStockQuantity() - cartItem.getQuantity();
             product.setStockQuantity(updatedStock);
             productRepository.save(product);
+            log.debug("Stock updated: productId={}, productName='{}', qty={}, remainingStock={}",
+                    product.getId(), product.getName(), cartItem.getQuantity(), updatedStock);
 
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
@@ -72,19 +86,32 @@ public class OrderService {
         }
 
         Order savedOrder = orderRepository.save(order);
-        log.info("Order created successfully: orderId={}", savedOrder.getId());
+        log.info("Order created successfully: orderId={}, itemCount={}, totalAmount={}, customer={}",
+                savedOrder.getId(), savedOrder.getItems().size(), savedOrder.getTotalAmount(), customerEmail);
 
         cart.getItems().clear();
         cart.setTotalPrice(BigDecimal.ZERO);
         cartRepository.save(cart);
+        log.debug("Cart cleared after checkout: email={}", customerEmail);
 
-        // --- NEW KAFKA LOGIC ---
-        // Construct a simple payload string separated by pipes (|)
+        // --- KAFKA PRODUCER: dispatch email notification event ---
         String kafkaPayload = customerEmail + "|" + savedOrder.getId() + "|" + savedOrder.getTotalAmount().toString();
+        log.info("[KAFKA PRODUCER] Sending order event to topic='order-emails': orderId={}, customer={}",
+                savedOrder.getId(), customerEmail);
 
-        // Send the payload to the "order-emails" topic
-        kafkaTemplate.send("order-emails", kafkaPayload);
-        log.info("Dispatched email event to Kafka for orderId={}", savedOrder.getId());
+        kafkaTemplate.send("order-emails", kafkaPayload)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("[KAFKA PRODUCER] Failed to deliver order event to topic='order-emails': orderId={}, error={}",
+                                savedOrder.getId(), ex.getMessage(), ex);
+                    } else {
+                        log.info("[KAFKA PRODUCER] Order event delivered successfully: orderId={}, topic={}, partition={}, offset={}",
+                                savedOrder.getId(),
+                                result.getRecordMetadata().topic(),
+                                result.getRecordMetadata().partition(),
+                                result.getRecordMetadata().offset());
+                    }
+                });
 
         return savedOrder;
     }
