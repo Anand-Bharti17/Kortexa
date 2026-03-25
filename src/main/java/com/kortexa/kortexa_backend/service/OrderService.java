@@ -20,6 +20,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final EmailService emailService;
 
     // NEW: Inject the CartRepository so we can read and empty the cart
     private final CartRepository cartRepository;
@@ -76,6 +77,9 @@ public class OrderService {
         cart.getItems().clear();
         cart.setTotalPrice(BigDecimal.ZERO);
         cartRepository.save(cart);
+
+        // 6. THE NEW STEP: Send the confirmation email!
+        emailService.sendOrderConfirmation(customerEmail, savedOrder.getId(), savedOrder.getTotalAmount().toString());
 
         return savedOrder;
     }
