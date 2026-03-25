@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/reviews/product/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
+                        .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
                         // 2. VENDOR: Use hasRole instead of hasAuthority
                         .requestMatchers("/api/products/**").hasRole("VENDOR")
 
