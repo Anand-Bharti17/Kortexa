@@ -28,6 +28,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/products/store").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
 
                         // 1. CUSTOMER: Use hasRole instead of hasAuthority
                         .requestMatchers(HttpMethod.POST, "/api/reviews/product/**").hasRole("CUSTOMER")
