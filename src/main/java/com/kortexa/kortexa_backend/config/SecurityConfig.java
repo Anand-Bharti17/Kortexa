@@ -26,6 +26,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // 1. ACTIVATE CORS (This is what fixes your error!)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 2. DISABLE CSRF (Required for JWT REST APIs)
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
