@@ -35,17 +35,23 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/products/store").permitAll()
+
+                        // THE FIX: Allow anyone to VIEW products (GET requests)
+                        // Note: We explicitly list both the root path and sub-paths for Spring Boot 3 strict matching
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+
                         .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/swagger-ui.html").permitAll()
 
-                        // 1. CUSTOMER: Use hasRole instead of hasAuthority
+                        // 1. CUSTOMER
                         .requestMatchers(HttpMethod.POST, "/api/reviews/product/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
-                        // 2. VENDOR: Use hasRole instead of hasAuthority
+
+                        // 2. VENDOR: Only affects POST, PUT, DELETE because GET was already permitted above!
                         .requestMatchers("/api/products/**").hasRole("VENDOR")
 
                         // 3. ADMIN
