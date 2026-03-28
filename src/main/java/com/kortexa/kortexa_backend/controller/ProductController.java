@@ -8,6 +8,7 @@ import com.kortexa.kortexa_backend.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -53,6 +54,9 @@ public class ProductController {
         return ResponseEntity.ok(Map.of("suggestedDescription", description));
     }
 
+    // --- Add the @CacheEvict annotation here! ---
+    // value = "products" must match the name you used on your @Cacheable GET endpoint
+    @CacheEvict(value = "products", allEntries = true)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createProduct(
             // 1. Grab the JSON text part and convert it to your DTO
