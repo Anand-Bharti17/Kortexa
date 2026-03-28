@@ -42,9 +42,18 @@ public class JwtService {
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         Date expiresAt = new Date(System.currentTimeMillis() + jwtExpiration);
         log.debug("Generating JWT for user: {}, expires at: {}", userDetails.getUsername(), expiresAt);
+        // 1. Extract the role from Spring Security's UserDetails
+        // This grabs the first authority (e.g., "VENDOR" or "ROLE_VENDOR")
+        String role = userDetails.getAuthorities().iterator().next().getAuthority();
+
         return Jwts
                 .builder()
                 .setClaims(extraClaims)
+
+                // 2. INJECT THE ROLE HERE!
+                // This explicitly adds "role": "VENDOR" to the JWT payload
+                .claim("role", role)
+
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(expiresAt)
