@@ -72,18 +72,25 @@ public class AuthService {
                 )
         );
 
-        // 2. Fetch the user details to generate the token
+        // 2. Fetch the user details
         var user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // 3. Build a Spring Security UserDetails object
+        // 3. THE FIX: Enforce Account Status for Vendors
+        if (user.getStatus() == AccountStatus.PENDING_APPROVAL) {
+            log.warn("Login blocked - Account pending approval for email: {}", user.getEmail());
+            // We use a specific keyword "PENDING_APPROVAL" so React can easily spot it
+            throw new RuntimeException("PENDING_APPROVAL: Your vendor account is waiting for Admin approval.");
+        }
+
+        // 4. Build a Spring Security UserDetails object
         UserDetails userDetails = org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
                 .password(user.getPasswordHash())
                 .roles(user.getRole().name())
                 .build();
 
-        // 4. Generate the token
+        // 5. Generate the token
         String jwtToken = jwtService.generateToken(userDetails);
         log.info("Login successful for email: {}, role: {}", user.getEmail(), user.getRole());
 
