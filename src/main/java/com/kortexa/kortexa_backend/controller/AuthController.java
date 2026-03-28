@@ -5,6 +5,7 @@ import com.kortexa.kortexa_backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.kortexa.kortexa_backend.dto.LoginRequest;
@@ -33,12 +34,24 @@ public class AuthController {
 
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
+            // Call the service which might throw the PENDING_APPROVAL exception
             return ResponseEntity.ok(authService.login(request));
-        } catch (Exception e) {
+
+        } catch (RuntimeException e) {
             log.warn("Login failed for email={}: {}", request.email(), e.getMessage());
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password"));
+
+            // THE FIX: Check if the exception is our specific Pending Approval block
+            if (e.getMessage() != null && e.getMessage().contains("PENDING_APPROVAL")) {
+                // Send a 403 Forbidden with the exact 'message' key React is waiting for
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", e.getMessage()));
+            }
+
+            // If it's a normal bad password, send the generic 401 Unauthorized
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid email or password"));
         }
     }
 }
