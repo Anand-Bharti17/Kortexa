@@ -15,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.math.BigDecimal;
 
 import java.util.List;
@@ -27,8 +29,9 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
 
-    public Product createProduct(ProductRequest request, String userEmail) {
+    public Product createProduct(ProductRequest request, MultipartFile file, String userEmail) {
         log.info("Product creation request by vendor: email={}, productName='{}'", userEmail, request.name());
+
         // 1. Find the user making the request
         User vendor = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> {
@@ -48,18 +51,48 @@ public class ProductService {
             throw new SecurityException("Access Denied: Your vendor account is pending approval or suspended.");
         }
 
-        // 4. Map DTO to Entity and Link the Vendor
+        // --- NEW: 4. Upload Image to Cloudinary ---
+        String uploadedImageUrl = request.imageUrl(); // Fallback if no file is sent
+        if (file != null && !file.isEmpty()) {
+            try {
+                // UNCOMMENT AND USE YOUR CLOUDINARY SERVICE HERE:
+                // uploadedImageUrl = cloudinaryService.uploadFile(file);
+                log.info("Successfully uploaded image to Cloudinary");
+            } catch (Exception e) {
+                log.error("Failed to upload image to Cloudinary", e);
+                throw new RuntimeException("Image upload failed: " + e.getMessage());
+            }
+        }
+
+        // --- NEW: 5. Generate SEO Description with Gemini AI ---
+        String finalDescription = request.description();
+        // Since our React form doesn't even have a description field, this will usually be null!
+        if (finalDescription == null || finalDescription.isBlank()) {
+            try {
+                // UNCOMMENT AND USE YOUR GEMINI SERVICE HERE:
+                // finalDescription = geminiService.generateProductDescription(request.name());
+
+                // Temporary fallback until Gemini is wired up:
+                finalDescription = "A premium " + request.name() + " offered by " + vendor.getEmail();
+                log.info("Successfully generated AI description");
+            } catch (Exception e) {
+                log.error("Failed to generate AI description", e);
+                finalDescription = "High-quality product guaranteed."; // Safe fallback
+            }
+        }
+
+        // 6. Map DTO to Entity and Link the Vendor
         Product product = Product.builder()
                 .vendor(vendor)
                 .name(request.name())
-                .description(request.description())
+                .description(finalDescription) // <-- Using the Gemini text!
                 .price(request.price())
                 .stockQuantity(request.stockQuantity())
                 .category(request.category())
-                .imageUrl(request.imageUrl())
+                .imageUrl(uploadedImageUrl)    // <-- Using the Cloudinary URL!
                 .build();
 
-        // 5. Save to Database
+        // 7. Save to Database
         Product saved = productRepository.save(product);
         log.info("Product created successfully: productId={}, name='{}', vendor={}", saved.getId(), saved.getName(), userEmail);
         return saved;

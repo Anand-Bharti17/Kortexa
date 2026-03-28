@@ -8,6 +8,7 @@ import com.kortexa.kortexa_backend.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -52,19 +53,28 @@ public class ProductController {
         return ResponseEntity.ok(Map.of("suggestedDescription", description));
     }
 
-    // POST /api/products -> Creates a new product
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createProduct(
-            @Valid @RequestBody ProductRequest request,
+            // 1. Grab the JSON text part and convert it to your DTO
+            @Valid @RequestPart("product") ProductRequest request,
+
+            // 2. Grab the actual image file part
+            @RequestPart(value = "file", required = false) MultipartFile file,
+
             Authentication authentication
     ) {
         try {
             // authentication.getName() contains the email from the JWT Subject!
-            Product product = productService.createProduct(request, authentication.getName());
+            // 3. Pass the 'file' into your service so Cloudinary can upload it
+            Product product = productService.createProduct(request, file, authentication.getName());
             return ResponseEntity.ok(product);
+
         } catch (SecurityException | IllegalArgumentException e) {
             log.warn("Product creation denied for user={}: {}", authentication.getName(), e.getMessage());
             return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error during product creation", e);
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to create product: " + e.getMessage()));
         }
     }
 
