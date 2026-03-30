@@ -9,6 +9,7 @@ import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
@@ -28,7 +29,10 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final ImageUploadService cloudinaryService;
+    private final AiService geminiService;
 
+    @CacheEvict(value = "products", allEntries = true)
     public Product createProduct(ProductRequest request, MultipartFile file, String userEmail) {
         log.info("Product creation request by vendor: email={}, productName='{}'", userEmail, request.name());
 
@@ -56,7 +60,7 @@ public class ProductService {
         if (file != null && !file.isEmpty()) {
             try {
                 // UNCOMMENT AND USE YOUR CLOUDINARY SERVICE HERE:
-                // uploadedImageUrl = cloudinaryService.uploadFile(file);
+                 uploadedImageUrl = cloudinaryService.uploadImage(file);
                 log.info("Successfully uploaded image to Cloudinary");
             } catch (Exception e) {
                 log.error("Failed to upload image to Cloudinary", e);
@@ -70,10 +74,10 @@ public class ProductService {
         if (finalDescription == null || finalDescription.isBlank()) {
             try {
                 // UNCOMMENT AND USE YOUR GEMINI SERVICE HERE:
-                // finalDescription = geminiService.generateProductDescription(request.name());
+                 finalDescription = geminiService.generateProductDescription(request.name(),request.category());
 
                 // Temporary fallback until Gemini is wired up:
-                finalDescription = "A premium " + request.name() + " offered by " + vendor.getEmail();
+//                finalDescription = "A premium " + request.name() + " offered by " + vendor.getEmail();
                 log.info("Successfully generated AI description");
             } catch (Exception e) {
                 log.error("Failed to generate AI description", e);
@@ -133,5 +137,16 @@ public class ProductService {
 
         // Pass the safely formatted string to the repository
         return productRepository.searchAndFilterProducts(formattedSearch, category, minPrice, maxPrice, pageable);
+    }
+
+    public Product getProductById(Long id) {
+        log.debug("Fetching product details: productId={}", id);
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Product not found: productId={}", id);
+                    return new IllegalArgumentException("Product not found");
+                });
+        log.debug("Product retrieved: id={}, name='{}', vendor={}", product.getId(), product.getName(), product.getVendor().getEmail());
+        return product;
     }
 }

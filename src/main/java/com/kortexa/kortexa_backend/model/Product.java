@@ -25,8 +25,10 @@ public class Product implements Serializable{
     // NEW: Link the product to the vendor who sells it
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id", nullable = false)
-    @JsonIgnore // <-- ADD THIS ANNOTATION! It tells Jackson: "Do not try to load this into JSON!"
     private User vendor;
+
+    @Transient
+    private String vendorEmail;
 
     @NotBlank(message = "Product name is required")
     @Column(nullable = false)
@@ -54,5 +56,10 @@ public class Product implements Serializable{
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    @com.fasterxml.jackson.annotation.JsonGetter("vendorEmail")
+    public String getVendorEmailForJson() {
+        return vendor != null ? vendor.getEmail() : null;
     }
 }

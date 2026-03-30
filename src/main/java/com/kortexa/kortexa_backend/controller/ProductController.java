@@ -8,7 +8,7 @@ import com.kortexa.kortexa_backend.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -54,9 +54,6 @@ public class ProductController {
         return ResponseEntity.ok(Map.of("suggestedDescription", description));
     }
 
-    // --- Add the @CacheEvict annotation here! ---
-    // value = "products" must match the name you used on your @Cacheable GET endpoint
-    @CacheEvict(value = "products", allEntries = true)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createProduct(
             // 1. Grab the JSON text part and convert it to your DTO
@@ -71,6 +68,10 @@ public class ProductController {
             // authentication.getName() contains the email from the JWT Subject!
             // 3. Pass the 'file' into your service so Cloudinary can upload it
             Product product = productService.createProduct(request, file, authentication.getName());
+            
+            // Reload the products from db and update the cache so frontend sees the new product
+            productService.getAllProducts();
+            
             return ResponseEntity.ok(product);
 
         } catch (SecurityException | IllegalArgumentException e) {
@@ -107,5 +108,16 @@ public class ProductController {
 
         Page<Product> products = productService.browsePublicStore(search, category, minPrice, maxPrice, page, size, sortBy);
         return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getProductById(@PathVariable Long id) {
+        try {
+            Product product = productService.getProductById(id);
+            return ResponseEntity.ok(product);
+        } catch (IllegalArgumentException e) {
+            log.warn("Product not found: id={}", id);
+            return ResponseEntity.notFound().build();
+        }
     }
 }
