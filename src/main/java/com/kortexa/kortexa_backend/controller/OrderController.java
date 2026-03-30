@@ -1,5 +1,6 @@
 package com.kortexa.kortexa_backend.controller;
 
+import com.kortexa.kortexa_backend.dto.VendorSalesStats;
 import com.kortexa.kortexa_backend.model.Order;
 import com.kortexa.kortexa_backend.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -32,5 +33,12 @@ public class OrderController {
         log.debug("Order history request: user={}", principal.getName());
         List<Order> history = orderService.getCustomerOrders(principal.getName());
         return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/vendor/stats")
+    public ResponseEntity<VendorSalesStats> getVendorStats(Principal principal) {
+        log.info("Vendor stats request: vendor={}", principal.getName());
+        VendorSalesStats stats = orderService.getVendorStats(principal.getName());
+        return ResponseEntity.ok(stats);
     }
 }

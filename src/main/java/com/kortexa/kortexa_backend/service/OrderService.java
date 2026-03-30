@@ -1,13 +1,11 @@
 package com.kortexa.kortexa_backend.service;
 
+import com.kortexa.kortexa_backend.dto.VendorSalesStats;
 import com.kortexa.kortexa_backend.model.*;
-import com.kortexa.kortexa_backend.repository.CartRepository;
-import com.kortexa.kortexa_backend.repository.OrderRepository;
-import com.kortexa.kortexa_backend.repository.ProductRepository;
-import com.kortexa.kortexa_backend.repository.UserRepository;
+import com.kortexa.kortexa_backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate; // NEW IMPORT
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +22,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final CartRepository cartRepository;
+    private final OrderItemRepository orderItemRepository;
 
     // REMOVED: private final EmailService emailService;
     // ADDED: Inject KafkaTemplate
@@ -55,7 +54,7 @@ public class OrderService {
 
         Order order = Order.builder()
                 .customer(customer)
-                .status(OrderStatus.PENDING)
+                .status(OrderStatus.COMPLETED)
                 .totalAmount(cart.getTotalPrice())
                 .items(new ArrayList<>())
                 .build();
@@ -120,5 +119,38 @@ public class OrderService {
         User customer = userRepository.findByEmail(customerEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
         return orderRepository.findByCustomer_IdOrderByOrderDateDesc(customer.getId());
+    }
+
+    public VendorSalesStats getVendorStats(String vendorEmail) {
+        log.info("Fetching sales stats for vendor: {}", vendorEmail);
+        List<OrderItem> vendorItems = orderItemRepository.findByProduct_Vendor_Email(vendorEmail);
+
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        int totalItemsSold = 0;
+        java.util.Map<String, VendorSalesStats.ProductPerformance> performanceMap = new java.util.HashMap<>();
+
+        for (OrderItem item : vendorItems) {
+            BigDecimal itemRevenue = item.getPriceAtPurchase().multiply(new BigDecimal(item.getQuantity()));
+            totalRevenue = totalRevenue.add(itemRevenue);
+            totalItemsSold += item.getQuantity();
+
+            String productName = item.getProduct().getName();
+            VendorSalesStats.ProductPerformance perf = performanceMap.getOrDefault(productName,
+                    VendorSalesStats.ProductPerformance.builder()
+                            .productName(productName)
+                            .quantitySold(0)
+                            .totalRevenue(BigDecimal.ZERO)
+                            .build());
+
+            perf.setQuantitySold(perf.getQuantitySold() + item.getQuantity());
+            perf.setTotalRevenue(perf.getTotalRevenue().add(itemRevenue));
+            performanceMap.put(productName, perf);
+        }
+
+        return VendorSalesStats.builder()
+                .totalRevenue(totalRevenue)
+                .totalItemsSold(totalItemsSold)
+                .itemizedPerformance(new ArrayList<>(performanceMap.values()))
+                .build();
     }
 }
