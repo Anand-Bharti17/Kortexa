@@ -120,4 +120,45 @@ public class ProductController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    // PUT /api/products/{id} -> Update product (vendor-protected)
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateProduct(
+            @PathVariable Long id,
+            @Valid @RequestPart("product") ProductRequest request,
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            Authentication authentication
+    ) {
+        try {
+            Product product = productService.updateProduct(id, request, file, authentication.getName());
+            productService.getAllProducts(); // Clear cache
+            return ResponseEntity.ok(product);
+        } catch (SecurityException | IllegalArgumentException e) {
+            log.warn("Product update denied for user={}: {}", authentication.getName(), e.getMessage());
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error during product update", e);
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to update product: " + e.getMessage()));
+        }
+    }
+
+    // PATCH /api/products/{id}/stock -> Update stock quantity
+    @PatchMapping("/{id}/stock")
+    public ResponseEntity<?> updateStock(
+            @PathVariable Long id,
+            @RequestParam Integer quantity,
+            Authentication authentication
+    ) {
+        try {
+            Product product = productService.updateProductStock(id, quantity, authentication.getName());
+            productService.getAllProducts(); // Clear cache
+            return ResponseEntity.ok(product);
+        } catch (SecurityException | IllegalArgumentException e) {
+            log.warn("Stock update denied for user={}: {}", authentication.getName(), e.getMessage());
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected error during stock update", e);
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to update stock: " + e.getMessage()));
+        }
+    }
 }

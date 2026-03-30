@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Random;
 
 @Slf4j
-@Component
+// @Component - DISABLED: DataSeeder is no longer needed
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 

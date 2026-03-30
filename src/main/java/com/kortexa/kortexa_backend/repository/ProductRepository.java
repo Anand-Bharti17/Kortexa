@@ -15,12 +15,17 @@ import java.util.List;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
+    // Explicitly fetch all products with vendor to avoid lazy loading issues
+    @Query("SELECT DISTINCT p FROM Product p JOIN FETCH p.vendor ORDER BY p.id DESC")
+    List<Product> findAll();
+
     // Spring Data JPA automatically writes the SQL for these based on the method names!
     List<Product> findByVendorId(Long vendorId);
 
     List<Product> findByCategory(String category);
-    // This query cleverly ignores parameters that are null!
-    @Query("SELECT p FROM Product p WHERE " +
+    
+    // This query cleverly ignores parameters that are null and eagerly fetches vendor!
+    @Query("SELECT DISTINCT p FROM Product p JOIN FETCH p.vendor WHERE " +
             "(:search IS NULL OR LOWER(p.name) LIKE :search OR LOWER(p.description) LIKE :search) AND " +
             "(:category IS NULL OR p.category = :category) AND " +
             "(:minPrice IS NULL OR p.price >= :minPrice) AND " +

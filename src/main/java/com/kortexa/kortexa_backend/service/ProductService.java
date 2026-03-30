@@ -32,7 +32,7 @@ public class ProductService {
     private final ImageUploadService cloudinaryService;
     private final AiService geminiService;
 
-    @CacheEvict(value = "products", allEntries = true)
+    // CACHING DISABLED: Use non-cached endpoint to avoid serialization issues
     public Product createProduct(ProductRequest request, MultipartFile file, String userEmail) {
         log.info("Product creation request by vendor: email={}, productName='{}'", userEmail, request.name());
 
@@ -102,13 +102,12 @@ public class ProductService {
         return saved;
     }
 
-    // @Cacheable checks Redis first. If cache HIT → method body is skipped (no log below will appear).
-    // If cache MISS → method body runs, DB is queried, and result is stored in Redis.
-    @Cacheable(value = "products") // <-- Caches the output in Redis under key 'products'
+    // DISABLED CACHING: Redis was causing serialization errors with lazy-loaded proxies
+    // Cache will be re-enabled once we use a proper DTO pattern
     public List<Product> getAllProducts() {
-        log.info("[CACHE MISS] 'products' not found in Redis — querying database for full product catalog");
+        log.info("Fetching full product catalog from database");
         List<Product> products = productRepository.findAll();
-        log.info("[DB QUERY] Retrieved {} products from database; result will be cached in Redis", products.size());
+        log.info("Retrieved {} products from database", products.size());
         return products;
     }
 
@@ -148,5 +147,95 @@ public class ProductService {
                 });
         log.debug("Product retrieved: id={}, name='{}', vendor={}", product.getId(), product.getName(), product.getVendor().getEmail());
         return product;
+    }
+
+    public Product updateProduct(Long productId, ProductRequest request, MultipartFile file, String userEmail) {
+        log.info("Product update request by vendor: email={}, productId={}", userEmail, productId);
+
+        // 1. Find the product
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> {
+                    log.warn("Product not found for update: productId={}", productId);
+                    return new IllegalArgumentException("Product not found");
+                });
+
+        // 2. Find the user and verify they are the vendor
+        User vendor = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> {
+                    log.warn("User not found for product update: email={}", userEmail);
+                    return new IllegalArgumentException("User not found");
+                });
+
+        // 3. Verify ownership: only the vendor who created the product can edit it
+        if (!product.getVendor().getId().equals(vendor.getId())) {
+            log.warn("Product update denied - user is not the vendor: productId={}, vendorId={}, attemptedBy={}", 
+                    productId, product.getVendor().getId(), userEmail);
+            throw new SecurityException("You can only edit your own products.");
+        }
+
+        // 4. Update product fields
+        product.setName(request.name());
+        product.setPrice(request.price());
+        product.setStockQuantity(request.stockQuantity());
+        product.setCategory(request.category());
+
+        // 5. Update image if provided
+        if (file != null && !file.isEmpty()) {
+            try {
+                String uploadedImageUrl = cloudinaryService.uploadImage(file);
+                product.setImageUrl(uploadedImageUrl);
+                log.info("Product image updated for productId={}", productId);
+            } catch (Exception e) {
+                log.error("Failed to upload image during product update", e);
+                throw new RuntimeException("Image upload failed: " + e.getMessage());
+            }
+        }
+
+        // 6. Update description if provided (or regenerate if changed)
+        if (request.description() != null && !request.description().isBlank()) {
+            product.setDescription(request.description());
+        }
+
+        // 7. Save and return
+        Product updated = productRepository.save(product);
+        log.info("Product updated successfully: productId={}, vendor={}", updated.getId(), userEmail);
+        return updated;
+    }
+
+    public Product updateProductStock(Long productId, Integer quantity, String userEmail) {
+        log.info("Stock update request by vendor: email={}, productId={}, newQuantity={}", userEmail, productId, quantity);
+
+        // Validate quantity
+        if (quantity < 0) {
+            log.warn("Invalid stock quantity provided: {}", quantity);
+            throw new IllegalArgumentException("Stock quantity cannot be negative");
+        }
+
+        // 1. Find the product
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> {
+                    log.warn("Product not found for stock update: productId={}", productId);
+                    return new IllegalArgumentException("Product not found");
+                });
+
+        // 2. Find the user and verify they are the vendor
+        User vendor = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> {
+                    log.warn("User not found for stock update: email={}", userEmail);
+                    return new IllegalArgumentException("User not found");
+                });
+
+        // 3. Verify ownership: only the vendor who created the product can edit it
+        if (!product.getVendor().getId().equals(vendor.getId())) {
+            log.warn("Stock update denied - user is not the vendor: productId={}, vendorId={}, attemptedBy={}", 
+                    productId, product.getVendor().getId(), userEmail);
+            throw new SecurityException("You can only edit your own products.");
+        }
+
+        // 4. Update stock
+        product.setStockQuantity(quantity);
+        Product updated = productRepository.save(product);
+        log.info("Stock updated successfully: productId={}, newQuantity={}, vendor={}", updated.getId(), quantity, userEmail);
+        return updated;
     }
 }

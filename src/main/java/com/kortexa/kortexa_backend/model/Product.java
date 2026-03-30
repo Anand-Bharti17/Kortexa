@@ -18,13 +18,16 @@ import java.time.LocalDateTime;
 @Builder
 public class Product implements Serializable{
 
+    private static final long serialVersionUID = 1L;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     // NEW: Link the product to the vendor who sells it
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // Changed to EAGER to avoid lazy loading issues
     @JoinColumn(name = "vendor_id", nullable = false)
+    @JsonIgnore // Prevent Jackson from trying to serialize lazy-loaded vendor
     private User vendor;
 
     @Transient
