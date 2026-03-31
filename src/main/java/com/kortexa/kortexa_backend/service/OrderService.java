@@ -54,7 +54,7 @@ public class OrderService {
 
         Order order = Order.builder()
                 .customer(customer)
-                .status(OrderStatus.COMPLETED)
+                .status(OrderStatus.PAID)
                 .totalAmount(cart.getTotalPrice())
                 .items(new ArrayList<>())
                 .build();
@@ -75,13 +75,13 @@ public class OrderService {
                     product.getId(), product.getName(), cartItem.getQuantity(), updatedStock);
 
             OrderItem orderItem = OrderItem.builder()
-                    .order(order)
                     .product(product)
                     .quantity(cartItem.getQuantity())
                     .priceAtPurchase(product.getPrice())
                     .build();
 
-            order.getItems().add(orderItem);
+            // Use the helper method for correct bidirectional linking!
+            order.addOrderItem(orderItem);
         }
 
         Order savedOrder = orderRepository.save(order);
@@ -122,19 +122,35 @@ public class OrderService {
     }
 
     public VendorSalesStats getVendorStats(String vendorEmail) {
-        log.info("Fetching sales stats for vendor: {}", vendorEmail);
-        List<OrderItem> vendorItems = orderItemRepository.findByProduct_Vendor_Email(vendorEmail);
+        String searchEmail = (vendorEmail != null) ? vendorEmail.trim().toLowerCase() : "";
+        log.info("DIAGNOSTIC: Fetching stats for vendorEmail='{}'", searchEmail);
+        
+        // Use the updated repository method
+        List<OrderItem> vendorItems = orderItemRepository.findByVendorEmailIgnoreCase(searchEmail);
+        log.info("DIAGNOSTIC: Found {} vendor items in database for email='{}'", vendorItems.size(), searchEmail);
 
         BigDecimal totalRevenue = BigDecimal.ZERO;
         int totalItemsSold = 0;
         java.util.Map<String, VendorSalesStats.ProductPerformance> performanceMap = new java.util.HashMap<>();
 
         for (OrderItem item : vendorItems) {
+            Order order = item.getOrder();
+            if (order == null) {
+                log.warn("DIAGNOSTIC: Found OrderItem(id={}) with null parent order!", item.getId());
+                continue;
+            }
+
+            // For stats, we include everything that isn't cancelled
+            if (order.getStatus() == OrderStatus.CANCELLED) {
+                log.debug("DIAGNOSTIC: Skipping cancelled order item (id={})", item.getId());
+                continue;
+            }
+
             BigDecimal itemRevenue = item.getPriceAtPurchase().multiply(new BigDecimal(item.getQuantity()));
             totalRevenue = totalRevenue.add(itemRevenue);
             totalItemsSold += item.getQuantity();
 
-            String productName = item.getProduct().getName();
+            String productName = item.getProduct() != null ? item.getProduct().getName() : "Unknown Product";
             VendorSalesStats.ProductPerformance perf = performanceMap.getOrDefault(productName,
                     VendorSalesStats.ProductPerformance.builder()
                             .productName(productName)
@@ -145,7 +161,11 @@ public class OrderService {
             perf.setQuantitySold(perf.getQuantitySold() + item.getQuantity());
             perf.setTotalRevenue(perf.getTotalRevenue().add(itemRevenue));
             performanceMap.put(productName, perf);
+            
+            log.info("DIAGNOSTIC: Processed item {} from Order {} - Revenue: {}", item.getId(), order.getId(), itemRevenue);
         }
+
+        log.info("DIAGNOSTIC: Stats summary for '{}': totalItemsSold={}, totalRevenue={}", searchEmail, totalItemsSold, totalRevenue);
 
         return VendorSalesStats.builder()
                 .totalRevenue(totalRevenue)

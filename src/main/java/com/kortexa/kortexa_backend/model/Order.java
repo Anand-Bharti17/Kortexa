@@ -42,4 +42,15 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
+
+    /**
+     * Helper method to add an item to the order while maintaining the bidirectional link.
+     */
+    public void addOrderItem(OrderItem item) {
+        if (items == null) {
+            items = new ArrayList<>();
+        }
+        items.add(item);
+        item.setOrder(this);
+    }
 }

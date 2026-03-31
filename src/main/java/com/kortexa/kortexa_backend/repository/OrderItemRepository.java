@@ -8,6 +8,9 @@ import java.util.List;
 
 @Repository
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
-    // Finds all sold items where the product belongs to a specific vendor
-    List<OrderItem> findByProduct_Vendor_Email(String vendorEmail);
+    @org.springframework.data.jpa.repository.Query("SELECT oi FROM OrderItem oi " +
+           "JOIN oi.product p " +
+           "JOIN p.vendor v " +
+           "WHERE LOWER(v.email) = LOWER(:email)")
+    List<OrderItem> findByVendorEmailIgnoreCase(@org.springframework.data.repository.query.Param("email") String email);
 }

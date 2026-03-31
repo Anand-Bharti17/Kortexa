@@ -5,6 +5,5 @@ public enum OrderStatus {
     PAID,       // Payment successful, waiting for vendor to ship
     SHIPPED,    // Vendor has shipped the item
     DELIVERED,  // Customer received it
-    COMPLETED,  // Order fully completed
     CANCELLED   // Order was cancelled
 }
