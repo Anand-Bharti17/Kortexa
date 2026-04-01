@@ -1,8 +1,10 @@
 package com.kortexa.kortexa_backend.controller;
 
+import com.kortexa.kortexa_backend.dto.RazorpayPaymentConfirmation;
 import com.kortexa.kortexa_backend.dto.VendorSalesStats;
 import com.kortexa.kortexa_backend.model.Order;
 import com.kortexa.kortexa_backend.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,15 @@ public class OrderController {
     public ResponseEntity<Order> checkoutCart(Principal principal) {
         log.info("Checkout request received: user={}", principal.getName());
         Order completedOrder = orderService.checkoutCart(principal.getName());
+        return ResponseEntity.ok(completedOrder);
+    }
+
+    @PostMapping("/checkout/razorpay")
+    public ResponseEntity<Order> checkoutCartWithRazorpay(
+            @Valid @RequestBody RazorpayPaymentConfirmation paymentConfirmation,
+            Principal principal) {
+        log.info("Razorpay checkout confirmation received: user={}", principal.getName());
+        Order completedOrder = orderService.checkoutCartAndPay(principal.getName(), paymentConfirmation.getRazorpayPaymentId());
         return ResponseEntity.ok(completedOrder);
     }
 

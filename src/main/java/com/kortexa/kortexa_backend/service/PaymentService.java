@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -16,6 +15,7 @@ import java.util.UUID;
 public class PaymentService {
 
     private final OrderRepository orderRepository;
+    private final RazorpayPaymentService razorpayPaymentService;
 
     @Transactional
     public String processPayment(Long orderId, String cardNumber, String customerEmail) {
@@ -41,21 +41,14 @@ public class PaymentService {
             throw new IllegalStateException("Order has already been processed or cancelled");
         }
 
-        // 4. THE STRIPE STUB
-        String cleanCardNumber = cardNumber.replace(" ", "");
-
-        if (!"4242424242424242".equals(cleanCardNumber)) {
-            log.warn("Payment declined - invalid card number for orderId={}, customer={}", orderId, customerEmail);
-            throw new IllegalArgumentException("Payment Declined: Invalid card number or insufficient funds.");
-        }
+        // 4. Process through the dummy Razorpay service
+        String transactionId = razorpayPaymentService.processDummyPayment(order, cardNumber);
 
         // 5. Payment Succeeded! Update the order status to PAID
         order.setStatus(OrderStatus.PAID);
         orderRepository.save(order);
 
-        // 6. Generate Transaction ID
-        String transactionId = "ch_" + UUID.randomUUID().toString().replace("-", "").substring(0, 24);
-        log.info("Payment successful: orderId={}, customer={}, transactionId={}", orderId, customerEmail, transactionId);
+        log.info("Payment successful via Razorpay: orderId={}, customer={}, transactionId={}", orderId, customerEmail, transactionId);
         return transactionId;
     }
 }

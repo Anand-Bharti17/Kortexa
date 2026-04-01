@@ -54,7 +54,7 @@ public class OrderService {
 
         Order order = Order.builder()
                 .customer(customer)
-                .status(OrderStatus.PAID)
+                .status(OrderStatus.PENDING)
                 .totalAmount(cart.getTotalPrice())
                 .items(new ArrayList<>())
                 .build();
@@ -105,6 +105,91 @@ public class OrderService {
                                 savedOrder.getId(), ex.getMessage(), ex);
                     } else {
                         log.info("[KAFKA PRODUCER] Order event delivered successfully: orderId={}, topic={}, partition={}, offset={}",
+                                savedOrder.getId(),
+                                result.getRecordMetadata().topic(),
+                                result.getRecordMetadata().partition(),
+                                result.getRecordMetadata().offset());
+                    }
+                });
+
+        return savedOrder;
+    }
+
+    @Transactional
+    public Order checkoutCartAndPay(String customerEmail, String paymentReference) {
+        log.info("Razorpay checkout completed; creating paid order for customer={}", customerEmail);
+
+        User customer = userRepository.findByEmail(customerEmail)
+                .orElseThrow(() -> {
+                    log.warn("Checkout failed - customer not found: email={}", customerEmail);
+                    return new IllegalArgumentException("Customer not found");
+                });
+
+        Cart cart = cartRepository.findByUserEmail(customerEmail)
+                .orElseThrow(() -> {
+                    log.warn("Checkout failed - cart not found for customer: email={}", customerEmail);
+                    return new IllegalArgumentException("Cart not found");
+                });
+
+        if (cart.getItems().isEmpty()) {
+            log.warn("Checkout aborted - cart is empty for customer: email={}", customerEmail);
+            throw new IllegalArgumentException("Cannot checkout an empty cart!");
+        }
+
+        log.info("Cart found for payment checkout: email={}, itemCount={}, total={}",
+                customerEmail, cart.getItems().size(), cart.getTotalPrice());
+
+        Order order = Order.builder()
+                .customer(customer)
+                .status(OrderStatus.PAID)
+                .totalAmount(cart.getTotalPrice())
+                .items(new ArrayList<>())
+                .build();
+
+        for (CartItem cartItem : cart.getItems()) {
+            Product product = cartItem.getProduct();
+
+            if (product.getStockQuantity() < cartItem.getQuantity()) {
+                log.warn("Checkout failed - insufficient stock: productId={}, productName='{}', requested={}, available={}",
+                        product.getId(), product.getName(), cartItem.getQuantity(), product.getStockQuantity());
+                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
+            }
+
+            int updatedStock = product.getStockQuantity() - cartItem.getQuantity();
+            product.setStockQuantity(updatedStock);
+            productRepository.save(product);
+            log.debug("Stock updated: productId={}, productName='{}', qty={}, remainingStock={}",
+                    product.getId(), product.getName(), cartItem.getQuantity(), updatedStock);
+
+            OrderItem orderItem = OrderItem.builder()
+                    .product(product)
+                    .quantity(cartItem.getQuantity())
+                    .priceAtPurchase(product.getPrice())
+                    .build();
+
+            order.addOrderItem(orderItem);
+        }
+
+        Order savedOrder = orderRepository.save(order);
+        log.info("Paid order created successfully: orderId={}, itemCount={}, totalAmount={}, customer={}, paymentReference={}",
+                savedOrder.getId(), savedOrder.getItems().size(), savedOrder.getTotalAmount(), customerEmail, paymentReference);
+
+        cart.getItems().clear();
+        cart.setTotalPrice(BigDecimal.ZERO);
+        cartRepository.save(cart);
+        log.debug("Cart cleared after paid checkout: email={}", customerEmail);
+
+        String kafkaPayload = customerEmail + "|" + savedOrder.getId() + "|" + savedOrder.getTotalAmount().toString();
+        log.info("[KAFKA PRODUCER] Sending paid order event to topic='order-emails': orderId={}, customer={}",
+                savedOrder.getId(), customerEmail);
+
+        kafkaTemplate.send("order-emails", kafkaPayload)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("[KAFKA PRODUCER] Failed to deliver paid order event to topic='order-emails': orderId={}, error={}",
+                                savedOrder.getId(), ex.getMessage(), ex);
+                    } else {
+                        log.info("[KAFKA PRODUCER] Paid order event delivered successfully: orderId={}, topic={}, partition={}, offset={}",
                                 savedOrder.getId(),
                                 result.getRecordMetadata().topic(),
                                 result.getRecordMetadata().partition(),
