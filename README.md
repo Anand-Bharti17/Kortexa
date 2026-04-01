@@ -1,6 +1,6 @@
-# 🛒 Kortexa E-Commerce Backend Platform
+# 🛒 Kortexa E-Commerce Platform
 
-An enterprise-grade, highly scalable RESTful API built with Spring Boot 3. Kortexa is designed to handle high-traffic e-commerce operations by leveraging a robust microservice-adjacent architecture. It features in-memory caching, asynchronous event streaming, cloud media storage, and AI-driven content generation.
+A full-stack e-commerce solution with a Spring Boot 3 backend and React + Vite frontend. Kortexa is designed to handle high-traffic commerce operations by leveraging a robust microservice-adjacent architecture, in-memory caching, asynchronous event streaming, cloud media storage, and AI-driven content generation.
 
 ---
 
@@ -36,6 +36,27 @@ An enterprise-grade, highly scalable RESTful API built with Spring Boot 3. Korte
 * **Payment Gateway:** Razorpay
 * **Email Service:** JavaMailSender (SMTP)
 * **Documentation:** Swagger / OpenAPI 3.0
+
+---
+
+## 🌐 Frontend Platform
+
+The frontend application lives in `kortexa-frontend` and is built with React + Vite.
+
+* **UI Framework:** React 19
+* **Build Tool:** Vite
+* **Styling:** Tailwind CSS
+* **Routing:** React Router DOM
+* **State Management:** Zustand
+* **HTTP Client:** Axios
+* **Pages:** Home, Login, Register, Product Detail, Cart, Order History, Order Success, Admin Dashboard, Vendor Dashboard
+
+### Frontend Setup
+1. `cd kortexa-frontend`
+2. `npm install`
+3. `npm run dev`
+4. `npm run build` to create a production bundle
+5. `npm run preview` to preview the built app
 
 ---
 
