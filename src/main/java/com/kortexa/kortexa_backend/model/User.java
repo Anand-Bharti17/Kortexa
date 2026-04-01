@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails; // MUST IMPORT THIS
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -20,7 +20,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User implements UserDetails, Serializable { // <-- ADD Serializable
+public class User implements UserDetails, Serializable {
 
     private static final long serialVersionUID = 1L;
 

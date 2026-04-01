@@ -32,7 +32,7 @@ public class ProductService {
     private final ImageUploadService cloudinaryService;
     private final AiService geminiService;
 
-    // CACHING DISABLED: Use non-cached endpoint to avoid serialization issues
+    @CacheEvict(value = "products", allEntries = true)
     public Product createProduct(ProductRequest request, MultipartFile file, String userEmail) {
         log.info("Product creation request by vendor: email={}, productName='{}'", userEmail, request.name());
 
@@ -102,8 +102,7 @@ public class ProductService {
         return saved;
     }
 
-    // DISABLED CACHING: Redis was causing serialization errors with lazy-loaded proxies
-    // Cache will be re-enabled once we use a proper DTO pattern
+    @Cacheable(value = "products")
     public List<Product> getAllProducts() {
         log.info("Fetching full product catalog from database");
         List<Product> products = productRepository.findAll();
@@ -149,6 +148,7 @@ public class ProductService {
         return product;
     }
 
+    @CacheEvict(value = "products", allEntries = true)
     public Product updateProduct(Long productId, ProductRequest request, MultipartFile file, String userEmail) {
         log.info("Product update request by vendor: email={}, productId={}", userEmail, productId);
 
@@ -202,6 +202,7 @@ public class ProductService {
         return updated;
     }
 
+    @CacheEvict(value = "products", allEntries = true)
     public Product updateProductStock(Long productId, Integer quantity, String userEmail) {
         log.info("Stock update request by vendor: email={}, productId={}, newQuantity={}", userEmail, productId, quantity);
 

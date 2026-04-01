@@ -36,6 +36,17 @@ public class CacheInitializer {
                         log.warn("Failed to clear cache '{}': {}", cacheName, e.getMessage());
                     }
                 });
+
+                // Explicitly clear the 'products' cache in Redis even if it has not been created yet
+                try {
+                    var productsCache = cacheManager.getCache("products");
+                    if (productsCache != null) {
+                        productsCache.clear();
+                        log.info("✓ Explicitly cleared cache: products");
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to explicitly clear products cache: {}", e.getMessage());
+                }
                 
                 log.info("✓ All caches cleared successfully");
             }

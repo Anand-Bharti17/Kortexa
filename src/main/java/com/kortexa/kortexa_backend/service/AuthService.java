@@ -13,7 +13,6 @@ import com.kortexa.kortexa_backend.dto.LoginRequest;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.Map;
 
@@ -26,7 +25,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService; // Inject this
     private final AuthenticationManager authenticationManager; // Inject this
-    private final UserDetailsService userDetailsService; // Inject this
 
     public Map<String, String> register(RegisterRequest request) {
         log.info("Registration attempt for email: {}, role: {}", request.email(), request.role());

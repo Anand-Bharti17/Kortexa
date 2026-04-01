@@ -21,7 +21,7 @@ public class ImageUploadService {
         log.info("Image upload request received: filename='{}', size={} bytes", file.getOriginalFilename(), file.getSize());
         // Upload the file and let Cloudinary auto-detect the file type
         try {
-            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
             String secureUrl = uploadResult.get("secure_url").toString();
             log.info("Image uploaded successfully: url={}", secureUrl);
             // Return the secure (https) URL of the uploaded image

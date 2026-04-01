@@ -1,6 +1,7 @@
 package com.kortexa.kortexa_backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.kortexa.kortexa_backend.dto.RazorpayOrderResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,7 +66,7 @@ public class RazorpayGatewayService {
                 throw new RuntimeException("Razorpay order creation failed");
             }
 
-            Map<String, Object> responseMap = objectMapper.readValue(response.body(), Map.class);
+            Map<String, Object> responseMap = objectMapper.readValue(response.body(), new TypeReference<Map<String, Object>>() {});
             String orderId = (String) responseMap.get("id");
             log.info("Razorpay order created: orderId={} amount={} currency={}", orderId, amountInPaise, currency);
             return new RazorpayOrderResponse(razorpayKeyId, orderId, amountInPaise, currency);
