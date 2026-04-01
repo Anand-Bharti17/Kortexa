@@ -10,6 +10,7 @@ An enterprise-grade, highly scalable RESTful API built with Spring Boot 3. Korte
 * **Event-Driven Async Processing (Apache Kafka):** Utilizes Kafka (KRaft mode) to decouple background tasks. Order checkouts instantly produce a message payload to a Kafka broker, allowing background consumer services to handle SMTP email notifications asynchronously without blocking the client's HTTP response.
 * **AI-Powered Content Generation (Gemini API):** Seamless integration with Google's Gemini AI. When administrators create a new product, the system automatically generates SEO-optimized, engaging product descriptions based on a few keywords.
 * **Cloud Media Management (Cloudinary):** Direct integration with the Cloudinary API for secure, highly available, and scalable cloud-hosted product image management.
+* **Payment Gateway (Razorpay):** Built-in Razorpay order creation and verification to support secure, modern checkout workflows.
 * **Advanced Security (JWT & Spring Security):** Secure, stateless authentication using JSON Web Tokens. Implements strict Role-Based Access Control (RBAC) ensuring separation of concerns between `ADMIN` and `CUSTOMER` profiles.
 * **Containerized Infrastructure (Docker):** A complete `docker-compose` ecosystem for immediate, reliable provisioning of the PostgreSQL database, Redis cache, and Kafka broker.
 
@@ -32,6 +33,7 @@ An enterprise-grade, highly scalable RESTful API built with Spring Boot 3. Korte
 **Third-Party Services:**
 * **AI Integration:** Google Gemini API
 * **Media Storage:** Cloudinary API
+* **Payment Gateway:** Razorpay
 * **Email Service:** JavaMailSender (SMTP)
 * **Documentation:** Swagger / OpenAPI 3.0
 
@@ -57,33 +59,33 @@ Create or update your `src/main/resources/application.yml` with your specific cr
 
 \`\`\`yaml
 spring:
-datasource:
-url: jdbc:postgresql://localhost:5432/kortexa
-username: postgres
-password: your_db_password
-mail:
-host: smtp.gmail.com
-port: 587
-username: your_email@gmail.com
-password: your_app_password
-kafka:
-bootstrap-servers: localhost:9092
-data:
-redis:
-host: localhost
-port: 6379
+  datasource:
+    url: jdbc:postgresql://localhost:5432/kortexa
+    username: postgres
+    password: your_db_password
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: your_email@gmail.com
+    password: your_app_password
+  kafka:
+    bootstrap-servers: localhost:9092
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
 cloudinary:
-cloud_name: your_cloud_name
-api_key: your_api_key
-api_secret: your_api_secret
+  cloud_name: your_cloud_name
+  api_key: your_api_key
+  api_secret: your_api_secret
 
-jwt:
-secret: your_secure_base64_encoded_secret_key_here
-expiration: 86400000 # 24 hours
+razorpay:
+  key-id: your_razorpay_key_id
+  key-secret: your_razorpay_key_secret
 
 gemini:
-api-key: your_google_gemini_api_key
+  api-key: your_google_gemini_api_key
 \`\`\`
 
 ### 4. Run the Application
@@ -141,12 +143,18 @@ Kortexa features auto-generated, interactive OpenAPI documentation via Swagger U
         3. Locks in purchase prices and creates immutable `Order` and `OrderItem` records.
         4. Wipes the user's shopping cart.
         5. 📨 **Event Trigger:** Produces an async payload (`email|orderId|amount`) to the **Apache Kafka** `order-emails` topic and immediately returns a `200 OK` to the client.
+* `POST /checkout/razorpay` **(Customer)**
+    * Completes checkout by verifying Razorpay payment confirmation and creating a fully paid `Order` in a single transactional flow.
 * `GET /history` **(Customer)**
     * Returns a chronological list of all past orders for the authenticated user.
+* `GET /vendor/stats` **(Vendor)**
+    * Returns aggregated vendor revenue, total items sold, and itemized product performance metrics.
 
 ### 💳 Payments (`/api/payments`)
+* `GET /razorpay/order` **(Customer)**
+    * Builds a Razorpay order payload from the authenticated user's cart total and returns the Razorpay `order_id` and `key_id`.
 * `POST /charge` **(Customer)**
-    * A mock payment gateway that simulates transaction processing. Validates dummy card details and updates the associated `Order` status to `PAID`, returning a generated transaction ID.
+    * Processes payment for an existing `PENDING` order using internal Razorpay-style validation. Updates the order status to `PAID` and returns a transaction receipt.
 
 ---
 
