@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
-import { ShoppingCart, ArrowLeft, Loader } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Loader, Star } from "lucide-react";
 import useCartStore from "../store/useCartStore";
 import useAuthStore from "../store/useAuthStore";
 
@@ -13,9 +13,12 @@ export default function ProductDetail() {
   const [error, setError] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const addToCart = useCartStore((state) => state.addToCart);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { isAuthenticated, userRole } = useAuthStore();
 
   useEffect(() => {
     fetchProductDetails();
@@ -25,8 +28,12 @@ export default function ProductDetail() {
     try {
       setLoading(true);
       setError("");
-      const response = await api.get(`/products/${id}`);
-      setProduct(response.data);
+      const [productRes, reviewsRes] = await Promise.all([
+        api.get(`/products/${id}`),
+        api.get(`/reviews/product/${id}`)
+      ]);
+      setProduct(productRes.data);
+      setReviews(reviewsRes.data);
     } catch (err) {
       console.error("Failed to fetch product details", err);
       setError("Product not found or failed to load.");
@@ -56,6 +63,24 @@ export default function ProductDetail() {
       alert("Could not add item to cart. Please try again.");
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleAddReview = async (e) => {
+    e.preventDefault();
+    if (!newReview.comment.trim()) return;
+    
+    setSubmittingReview(true);
+    try {
+      const response = await api.post(`/reviews/product/${id}`, newReview);
+      setReviews([response.data, ...reviews]);
+      setNewReview({ rating: 5, comment: "" });
+      alert("Review submitted successfully!");
+    } catch (error) {
+      console.error("Failed to add review", error);
+      alert("Error submitting review. Please try again.");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -114,10 +139,17 @@ export default function ProductDetail() {
               </span>
             )}
 
-            {/* Title */}
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            {/* Title & Rating */}
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
               {product.name}
             </h1>
+            {product.reviewCount > 0 && (
+              <div className="flex items-center mb-4">
+                <span className="text-yellow-400 text-lg">{"★".repeat(Math.round(product.averageRating))}</span>
+                <span className="text-gray-300 text-lg">{"★".repeat(5 - Math.round(product.averageRating))}</span>
+                <span className="text-sm text-gray-500 ml-2">({product.reviewCount} reviews)</span>
+              </div>
+            )}
 
             {/* Price */}
             <div className="mb-6">
@@ -250,6 +282,79 @@ export default function ProductDetail() {
               )}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-16">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">Customer Reviews</h2>
+        
+        {isAuthenticated && userRole === "CUSTOMER" && (
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 max-w-2xl">
+            <h3 className="text-lg font-bold mb-4">Write a Review</h3>
+            <form onSubmit={handleAddReview}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
+                <div className="flex space-x-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setNewReview({ ...newReview, rating: star })}
+                      className={`text-2xl transition ${newReview.rating >= star ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-200'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Review Comment</label>
+                <textarea
+                  required
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  placeholder="What did you think of this product?"
+                  value={newReview.comment}
+                  onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                ></textarea>
+              </div>
+              <button
+                type="submit"
+                disabled={submittingReview}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {submittingReview ? "Submitting..." : "Submit Review"}
+              </button>
+            </form>
+          </div>
+        )}
+
+        <div className="space-y-6 max-w-3xl">
+          {reviews.length === 0 ? (
+            <p className="text-gray-500 italic">No reviews yet. Be the first to review this product!</p>
+          ) : (
+            reviews.map((review) => (
+              <div key={review.id} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                      {review.customer?.name?.[0]?.toUpperCase() || review.customer?.email?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900">{review.customer?.name || review.customer?.email}</p>
+                      <p className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex text-yellow-400 text-sm">
+                    {"★".repeat(review.rating)}
+                    <span className="text-gray-300">{"★".repeat(5 - review.rating)}</span>
+                  </div>
+                </div>
+                <p className="text-gray-700">{review.comment}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import com.kortexa.kortexa_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -26,6 +27,33 @@ public class UserService {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
+                user.getName(),
+                user.getProfileImageUrl(),
+                user.getRole(),
+                user.getStatus(),
+                user.getCreatedAt()
+        );
+    }
+
+    @Transactional
+    public UserResponse updateUserProfile(String email, String name, String profileImageUrl) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        if (name != null) {
+            user.setName(name);
+        }
+        if (profileImageUrl != null) {
+            user.setProfileImageUrl(profileImageUrl);
+        }
+        
+        userRepository.save(user);
+        
+        return new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getProfileImageUrl(),
                 user.getRole(),
                 user.getStatus(),
                 user.getCreatedAt()

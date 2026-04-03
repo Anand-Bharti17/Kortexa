@@ -51,7 +51,14 @@ export default function Navbar() {
           </div>
 
           {/* Right end */}
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            <Link
+              to="/profile"
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 bg-opacity-30 hover:bg-opacity-50 transition font-semibold"
+            >
+              <User size={20} />
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
             <button
               onClick={handleLogout}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 transition font-semibold"
@@ -109,7 +116,14 @@ export default function Navbar() {
           </div>
 
           {/* Right end */}
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            <Link
+              to="/profile"
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 bg-opacity-30 hover:bg-opacity-50 transition font-semibold"
+            >
+              <User size={20} />
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
             <button
               onClick={handleLogout}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 transition font-semibold"
@@ -141,6 +155,14 @@ export default function Navbar() {
             >
               <Shield size={20} />
               <span>Dashboard</span>
+            </Link>
+
+            <Link
+              to="/profile"
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-green-800 hover:bg-green-700 transition font-semibold"
+            >
+              <User size={20} />
+              <span>Profile</span>
             </Link>
 
             {/* Logout */}

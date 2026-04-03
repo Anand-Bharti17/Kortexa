@@ -149,6 +149,15 @@ export default function Home() {
                 <h3 className="font-bold text-lg text-gray-800 truncate group-hover:text-blue-600 transition">
                   {product.name}
                 </h3>
+                
+                {/* Rating */}
+                {product.reviewCount > 0 && (
+                  <div className="flex items-center mt-1">
+                    <span className="text-yellow-400 text-sm">{"★".repeat(Math.round(product.averageRating))}</span>
+                    <span className="text-gray-300 text-sm">{"★".repeat(5 - Math.round(product.averageRating))}</span>
+                    <span className="text-xs text-gray-500 ml-1">({product.reviewCount})</span>
+                  </div>
+                )}
 
                 {/* Price */}
                 <div className="mt-4 flex items-center justify-between">

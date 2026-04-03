@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 public record UserResponse(
         Long id,
         String email,
+        String name,
+        String profileImageUrl,
         Role role,
         AccountStatus status,
         LocalDateTime createdAt

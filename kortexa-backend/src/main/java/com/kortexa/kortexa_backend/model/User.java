@@ -42,6 +42,12 @@ public class User implements UserDetails, Serializable {
     @Column(nullable = false)
     private Role role;
 
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountStatus status;

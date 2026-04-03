@@ -10,6 +10,7 @@ import Cart from "./pages/Cart";
 import VendorDashboard from './pages/VendorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ProductDetail from './pages/ProductDetail';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path="/order-success" element={<OrderSuccess />} />
             <Route path="/orders" element={<OrderHistory />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/profile" element={<Profile />} />
             
             {/* Add the Vendor Route */}
             <Route path="/vendor" element={<VendorDashboard />} />

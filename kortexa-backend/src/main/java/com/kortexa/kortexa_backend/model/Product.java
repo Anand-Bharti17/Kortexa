@@ -9,6 +9,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.hibernate.annotations.Formula;
 
 @Entity
 @Table(name = "products")
@@ -55,6 +56,12 @@ public class Product implements Serializable{
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Formula("(SELECT COALESCE(AVG(r.rating), 0) FROM reviews r WHERE r.product_id = id)")
+    private Double averageRating;
+
+    @Formula("(SELECT COUNT(r.id) FROM reviews r WHERE r.product_id = id)")
+    private Integer reviewCount;
 
     @PrePersist
     protected void onCreate() {
