@@ -153,9 +153,23 @@ export default function Home() {
                 {/* Rating */}
                 {product.reviewCount > 0 && (
                   <div className="flex items-center mt-1">
-                    <span className="text-yellow-400 text-sm">{"★".repeat(Math.round(product.averageRating))}</span>
-                    <span className="text-gray-300 text-sm">{"★".repeat(5 - Math.round(product.averageRating))}</span>
-                    <span className="text-xs text-gray-500 ml-1">({product.reviewCount})</span>
+                    <div className="flex mr-1 text-sm">
+                      {[1, 2, 3, 4, 5].map((i) => {
+                        let fillPct = 0;
+                        if (product.averageRating >= i) fillPct = 100;
+                        else if (product.averageRating > i - 1) fillPct = (product.averageRating - (i - 1)) * 100;
+                        return (
+                          <div key={i} className="relative inline-block text-gray-200">
+                            ★
+                            <div className="absolute top-0 left-0 overflow-hidden text-yellow-400" style={{ width: `${fillPct}%` }}>
+                              ★
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <span className="text-xs font-bold text-gray-700 mr-1">{product.averageRating.toFixed(1)}</span>
+                    <span className="text-xs text-gray-500">({product.reviewCount})</span>
                   </div>
                 )}
 

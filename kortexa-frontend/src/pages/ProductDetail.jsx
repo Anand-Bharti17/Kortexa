@@ -145,9 +145,23 @@ export default function ProductDetail() {
             </h1>
             {product.reviewCount > 0 && (
               <div className="flex items-center mb-4">
-                <span className="text-yellow-400 text-lg">{"★".repeat(Math.round(product.averageRating))}</span>
-                <span className="text-gray-300 text-lg">{"★".repeat(5 - Math.round(product.averageRating))}</span>
-                <span className="text-sm text-gray-500 ml-2">({product.reviewCount} reviews)</span>
+                <div className="flex mr-2 text-xl">
+                  {[1, 2, 3, 4, 5].map((i) => {
+                    let fillPct = 0;
+                    if (product.averageRating >= i) fillPct = 100;
+                    else if (product.averageRating > i - 1) fillPct = (product.averageRating - (i - 1)) * 100;
+                    return (
+                      <div key={i} className="relative inline-block text-gray-200">
+                        ★
+                        <div className="absolute top-0 left-0 overflow-hidden text-yellow-400" style={{ width: `${fillPct}%` }}>
+                          ★
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <span className="text-sm font-bold text-gray-800 mr-1">{product.averageRating.toFixed(1)}</span>
+                <span className="text-sm text-gray-500">({product.reviewCount} reviews)</span>
               </div>
             )}
 
