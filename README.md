@@ -6,9 +6,9 @@ A full-stack e-commerce solution with a Spring Boot 3 backend and React + Vite f
 
 ## 🚀 Architectural Highlights
 
-* **High-Speed Read Operations (Redis):** Integrated Spring Data Redis caching on product catalogs. Bypasses database queries for frequently accessed endpoints, dropping response times from ~150ms to <10ms.
-* **Event-Driven Async Processing (Apache Kafka):** Utilizes Kafka (KRaft mode) to decouple background tasks. Order checkouts instantly produce a message payload to a Kafka broker, allowing background consumer services to handle SMTP email notifications asynchronously without blocking the client's HTTP response.
-* **AI-Powered Content Generation (Gemini API):** Seamless integration with Google's Gemini AI. When administrators create a new product, the system automatically generates SEO-optimized, engaging product descriptions based on a few keywords.
+* **High-Speed Read Operations (Redis):** Integrated Spring Data Redis caching on product catalogs, and utilizes Redis Sorted Sets (ZSets) for tracking user session data like "Recently Viewed" and powering a real-time "Frequently Bought Together" recommendation engine.
+* **Event-Driven Async Processing (Apache Kafka):** Utilizes Kafka (KRaft mode) to decouple background tasks. Order checkouts instantly produce message payloads to topics (`order-emails`, `order-analytics`), allowing background consumer services to handle SMTP email notifications and analytics aggregations asynchronously without blocking the client's HTTP response.
+* **AI-Powered Content Generation & Summarization (Gemini API):** Seamless integration with Google's Gemini AI. 1) When administrators create a new product, the system automatically generates SEO-optimized product descriptions. 2) The system dynamically generates an AI sentiment summary from customer product reviews.
 * **Cloud Media Management (Cloudinary):** Direct integration with the Cloudinary API for secure, highly available, and scalable cloud-hosted product image management.
 * **Payment Gateway (Razorpay):** Built-in Razorpay order creation and verification to support secure, modern checkout workflows.
 * **Advanced Security (JWT & Spring Security):** Secure, stateless authentication using JSON Web Tokens. Implements strict Role-Based Access Control (RBAC) ensuring separation of concerns between `ADMIN` and `CUSTOMER` profiles.
@@ -139,8 +139,12 @@ Kortexa features auto-generated, interactive OpenAPI documentation via Swagger U
 * `GET /` **(Public)**
     * Retrieves a list of all active products.
     * ⚡ *Performance:* Intercepted by Spring Cache (`@Cacheable`); served directly from **Redis RAM** in <10ms on subsequent requests.
+* `GET /recently-viewed` **(Customer)**
+    * Retrieves the active user's browsing history powered by Redis Sorted Sets (TTL 7 days).
 * `GET /{id}` **(Public)**
-    * Retrieves specific details for a single product.
+    * Retrieves specific details for a single product and logs the view in Redis.
+* `GET /{id}/frequently-bought-together` **(Public)**
+    * Retrieves real-time product recommendations based on co-purchase analytics streamed via Kafka and aggregated in Redis.
 * `POST /` **(Admin Only)**
     * Creates a new product.
     * 🌐 *Integration:* Uploads the multipart image file to **Cloudinary** and saves the secure URL.
@@ -149,6 +153,14 @@ Kortexa features auto-generated, interactive OpenAPI documentation via Swagger U
     * Updates pricing, inventory counts, or metadata. Automatically evicts the Redis cache for accurate data consistency.
 * `DELETE /{id}` **(Admin Only)**
     * Deletes a product from the catalog.
+
+### ⭐ Customer Reviews (`/api/reviews`)
+* `POST /product/{productId}` **(Customer)**
+    * Submits a user review and rating. Validates business logic preventing duplicate reviews (updates existing instead).
+* `GET /product/{productId}` **(Public)**
+    * Retrieves all reviews for a specified product.
+* `GET /product/{productId}/summary` **(Public)**
+    * Fetches a cached AI-generated sentiment summary built by aggregating recent review comments through Google Gemini.
 
 ### 🛒 Shopping Cart (`/api/cart`)
 * `GET /` **(Customer)**
@@ -163,7 +175,7 @@ Kortexa features auto-generated, interactive OpenAPI documentation via Swagger U
         2. Deducts purchased quantities from the global inventory.
         3. Locks in purchase prices and creates immutable `Order` and `OrderItem` records.
         4. Wipes the user's shopping cart.
-        5. 📨 **Event Trigger:** Produces an async payload (`email|orderId|amount`) to the **Apache Kafka** `order-emails` topic and immediately returns a `200 OK` to the client.
+        5. 📨 **Event Trigger:** Produces async payloads to **Apache Kafka** `order-emails` and `order-analytics` topics and immediately returns a `200 OK` to the client.
 * `POST /checkout/razorpay` **(Customer)**
     * Completes checkout by verifying Razorpay payment confirmation and creating a fully paid `Order` in a single transactional flow.
 * `GET /history` **(Customer)**
@@ -182,9 +194,13 @@ Kortexa features auto-generated, interactive OpenAPI documentation via Swagger U
 ## 🏗️ Background Services (Daemons)
 
 ### 📧 Notification Consumer (`EmailService.java`)
-* Operates as an independent background worker listening to the Kafka broker.
+* Operates as an independent background worker listening to the `order-emails` Kafka topic.
 * Triggers automatically via `@KafkaListener` upon successful checkouts.
 * Constructs and dispatches HTML/Text order confirmation receipts via SMTP (JavaMailSender) without blocking the main web server threads.
+
+### 📊 Real-Time Analytics Consumer (`AnalyticsService.java`)
+* Operates as a background worker listening to the `order-analytics` Kafka topic.
+* Parses product co-purchases from order payloads and updates association scores in Redis ZSets to dynamically power the recommendation engine.
 
 ---
 
