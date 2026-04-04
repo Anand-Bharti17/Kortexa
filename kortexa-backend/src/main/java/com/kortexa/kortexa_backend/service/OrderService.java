@@ -112,6 +112,14 @@ public class OrderService {
                     }
                 });
 
+        // --- KAFKA PRODUCER: dispatch analytics event ---
+        if (savedOrder.getItems().size() > 1) {
+            String analyticsPayload = savedOrder.getItems().stream()
+                    .map(item -> item.getProduct().getId().toString())
+                    .collect(java.util.stream.Collectors.joining(","));
+            kafkaTemplate.send("order-analytics", analyticsPayload);
+        }
+
         return savedOrder;
     }
 
@@ -196,6 +204,13 @@ public class OrderService {
                                 result.getRecordMetadata().offset());
                     }
                 });
+
+        if (savedOrder.getItems().size() > 1) {
+            String analyticsPayload = savedOrder.getItems().stream()
+                    .map(item -> item.getProduct().getId().toString())
+                    .collect(java.util.stream.Collectors.joining(","));
+            kafkaTemplate.send("order-analytics", analyticsPayload);
+        }
 
         return savedOrder;
     }

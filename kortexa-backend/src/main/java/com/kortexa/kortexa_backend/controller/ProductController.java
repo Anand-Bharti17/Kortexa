@@ -109,15 +109,29 @@ public class ProductController {
         return ResponseEntity.ok(products);
     }
 
+    @GetMapping("/recently-viewed")
+    public ResponseEntity<List<Product>> getRecentlyViewed(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getName().equals("anonymousUser")) {
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
+        return ResponseEntity.ok(productService.getRecentlyViewedProducts(authentication.getName()));
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<?> getProductById(@PathVariable Long id) {
+    public ResponseEntity<?> getProductById(@PathVariable Long id, Authentication authentication) {
         try {
-            Product product = productService.getProductById(id);
+            String email = (authentication != null && authentication.isAuthenticated()) ? authentication.getName() : null;
+            Product product = productService.getProductById(id, email);
             return ResponseEntity.ok(product);
         } catch (IllegalArgumentException e) {
             log.warn("Product not found: id={}", id);
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/{id}/frequently-bought-together")
+    public ResponseEntity<List<Product>> getFrequentlyBoughtTogether(@PathVariable Long id) {
+        return ResponseEntity.ok(productService.getFrequentlyBoughtTogether(id));
     }
 
     // PUT /api/products/{id} -> Update product (vendor-protected)

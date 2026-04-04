@@ -31,6 +31,9 @@ public class ProductService {
     private final UserRepository userRepository;
     private final ImageUploadService cloudinaryService;
     private final AiService geminiService;
+    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+
+    private static final String RECENTLY_VIEWED_KEY_PREFIX = "recently_viewed:";
 
     @CacheEvict(value = "products", allEntries = true)
     public Product createProduct(ProductRequest request, MultipartFile file, String userEmail) {
@@ -137,15 +140,75 @@ public class ProductService {
         return productRepository.searchAndFilterProducts(formattedSearch, category, minPrice, maxPrice, pageable);
     }
 
-    public Product getProductById(Long id) {
+    public Product getProductById(Long id, String userEmail) {
         log.debug("Fetching product details: productId={}", id);
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Product not found: productId={}", id);
                     return new IllegalArgumentException("Product not found");
                 });
+                
+        if (userEmail != null && !userEmail.equals("anonymousUser")) {
+            recordRecentlyViewed(id, userEmail);
+        }
+        
         log.debug("Product retrieved: id={}, name='{}', vendor={}", product.getId(), product.getName(), product.getVendor().getEmail());
         return product;
+    }
+
+    private void recordRecentlyViewed(Long productId, String userEmail) {
+        try {
+            String key = RECENTLY_VIEWED_KEY_PREFIX + userEmail;
+            redisTemplate.opsForZSet().add(key, productId.toString(), System.currentTimeMillis());
+            redisTemplate.opsForZSet().removeRange(key, 0, -11); // Keep last 10
+            redisTemplate.expire(key, 7, java.util.concurrent.TimeUnit.DAYS);
+        } catch (Exception e) {
+            log.warn("Failed to record recently viewed product for user={}", userEmail, e);
+        }
+    }
+
+    public List<Product> getRecentlyViewedProducts(String userEmail) {
+        try {
+            if (userEmail == null || userEmail.equals("anonymousUser")) return java.util.Collections.emptyList();
+            String key = RECENTLY_VIEWED_KEY_PREFIX + userEmail;
+            java.util.Set<String> productIds = redisTemplate.opsForZSet().reverseRange(key, 0, 9);
+            if (productIds == null || productIds.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+            List<Long> idsToFetch = productIds.stream().map(Long::valueOf).toList();
+            List<Product> products = productRepository.findAllById(idsToFetch);
+            java.util.Map<Long, Product> productMap = products.stream().collect(java.util.stream.Collectors.toMap(Product::getId, p -> p));
+            return idsToFetch.stream()
+                    .map(productMap::get)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        } catch (Exception e) {
+            log.error("Failed to fetch recently viewed products for user={}", userEmail, e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    public List<Product> getFrequentlyBoughtTogether(Long productId) {
+        try {
+            String key = "fbt:" + productId;
+            // Get top 4 products with highest score
+            java.util.Set<String> productIds = redisTemplate.opsForZSet().reverseRange(key, 0, 3);
+            if (productIds == null || productIds.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+            List<Long> idsToFetch = productIds.stream().map(Long::valueOf).toList();
+            List<Product> products = productRepository.findAllById(idsToFetch);
+            
+            // Re-order them to match the order in Redis
+            java.util.Map<Long, Product> productMap = products.stream().collect(java.util.stream.Collectors.toMap(Product::getId, p -> p));
+            return idsToFetch.stream()
+                    .map(productMap::get)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        } catch (Exception e) {
+            log.error("Failed to fetch frequently bought together for productId={}", productId, e);
+            return java.util.Collections.emptyList();
+        }
     }
 
     @CacheEvict(value = "products", allEntries = true)

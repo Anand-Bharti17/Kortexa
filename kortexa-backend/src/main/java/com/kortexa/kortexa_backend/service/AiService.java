@@ -27,4 +27,23 @@ public class AiService {
         log.debug("AI description generated for productName='{}': {} chars", productName, result != null ? result.length() : 0);
         return result;
     }
+
+    public String generateReviewSummary(java.util.List<String> reviews) {
+        if (reviews == null || reviews.isEmpty()) {
+            return "Not enough reviews to generate a summary yet.";
+        }
+        
+        String combinedReviews = String.join("\n- ", reviews);
+        log.info("AI review summary generation requested for {} reviews", reviews.size());
+        
+        String prompt = "You are an e-commerce assistant. Based on the following customer reviews for a product, " +
+                "provide a concise 2-sentence summary of the overall customer sentiment. " +
+                "Highlight the main pros and cons mentioned.\n\nReviews:\n- " + combinedReviews;
+                
+        String result = chatClient.prompt()
+                .user(prompt)
+                .call()
+                .content();
+        return result;
+    }
 }

@@ -46,4 +46,12 @@ public class ReviewController {
         Double average = reviewService.getProductAverageRating(productId);
         return ResponseEntity.ok(Map.of("averageRating", average));
     }
+
+    // 4. Get AI Summary of Reviews (Public)
+    @GetMapping("/product/{productId}/summary")
+    public ResponseEntity<Map<String, String>> getReviewSummary(@PathVariable Long productId) {
+        log.debug("Get review summary request: productId={}", productId);
+        String summary = reviewService.getReviewSummary(productId);
+        return ResponseEntity.ok(Map.of("summary", summary));
+    }
 }

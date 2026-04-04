@@ -4,6 +4,8 @@ import api from "../services/api";
 import { ShoppingCart, ArrowLeft, Loader, Star } from "lucide-react";
 import useCartStore from "../store/useCartStore";
 import useAuthStore from "../store/useAuthStore";
+import RecentlyViewed from "../components/RecentlyViewed";
+import FrequentlyBoughtTogether from "../components/FrequentlyBoughtTogether";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -14,8 +16,10 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [reviews, setReviews] = useState([]);
-  const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
+  const [newReview, setNewReview] = useState({ rating: 0, comment: "" });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState("");
+  const [loadingSummary, setLoadingSummary] = useState(false);
 
   const addToCart = useCartStore((state) => state.addToCart);
   const { isAuthenticated, userRole } = useAuthStore();
@@ -34,11 +38,26 @@ export default function ProductDetail() {
       ]);
       setProduct(productRes.data);
       setReviews(reviewsRes.data);
+      if (reviewsRes.data.length >= 2) {
+        fetchReviewSummary();
+      }
     } catch (err) {
       console.error("Failed to fetch product details", err);
       setError("Product not found or failed to load.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReviewSummary = async () => {
+    try {
+      setLoadingSummary(true);
+      const res = await api.get(`/reviews/product/${id}/summary`);
+      setReviewSummary(res.data.summary);
+    } catch (err) {
+      console.error("Failed to fetch AI review summary", err);
+    } finally {
+      setLoadingSummary(false);
     }
   };
 
@@ -68,13 +87,16 @@ export default function ProductDetail() {
 
   const handleAddReview = async (e) => {
     e.preventDefault();
-    if (!newReview.comment.trim()) return;
+    if (!newReview.comment.trim() || newReview.rating === 0) {
+      alert("Please provide a rating and a comment.");
+      return;
+    }
     
     setSubmittingReview(true);
     try {
-      const response = await api.post(`/reviews/product/${id}`, newReview);
-      setReviews([response.data, ...reviews]);
-      setNewReview({ rating: 5, comment: "" });
+      await api.post(`/reviews/product/${id}`, newReview);
+      await fetchProductDetails(); // Refreshes reviews so if it was an update, it shows correctly
+      setNewReview({ rating: 0, comment: "" });
       alert("Review submitted successfully!");
     } catch (error) {
       console.error("Failed to add review", error);
@@ -303,12 +325,29 @@ export default function ProductDetail() {
       <div className="mt-16">
         <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">Customer Reviews</h2>
         
+        {/* AI Summary Badge */}
+        {(reviewSummary || loadingSummary) && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 mb-8 shadow-sm">
+            <div className="flex items-center mb-2">
+              <span className="text-xl mr-2">✨</span>
+              <h3 className="font-bold text-blue-900 text-lg">AI Review Summary</h3>
+            </div>
+            {loadingSummary ? (
+              <p className="text-blue-700 animate-pulse">Generating insights from customer reviews...</p>
+            ) : (
+              <p className="text-blue-800 leading-relaxed">{reviewSummary}</p>
+            )}
+          </div>
+        )}
+        
         {isAuthenticated && userRole === "CUSTOMER" && (
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 max-w-2xl">
             <h3 className="text-lg font-bold mb-4">Write a Review</h3>
             <form onSubmit={handleAddReview}>
               <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Give your star rating
+                </label>
                 <div className="flex space-x-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -371,6 +410,9 @@ export default function ProductDetail() {
           )}
         </div>
       </div>
+
+      <FrequentlyBoughtTogether productId={product.id} />
+      <RecentlyViewed />
     </div>
   );
 }

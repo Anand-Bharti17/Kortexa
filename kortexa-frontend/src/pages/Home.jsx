@@ -4,6 +4,7 @@ import api from "../services/api";
 import { ShoppingCart } from "lucide-react";
 import useCartStore from "../store/useCartStore";
 import useAuthStore from "../store/useAuthStore";
+import RecentlyViewed from "../components/RecentlyViewed";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -189,7 +190,10 @@ export default function Home() {
             </div>
           ))}
         </div>
-      )}{" "}
+      )}
+      
+      {/* Recently Viewed Component added here */}
+      <RecentlyViewed />
     </div>
   );
 }
