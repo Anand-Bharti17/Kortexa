@@ -124,7 +124,7 @@ export default function Cart() {
               </div>
               <div className="flex items-center space-x-6">
                 <span className="text-xl font-bold text-gray-900">
-                  ${(item.price * item.quantity).toFixed(2)}
+                  ₹{(item.price * item.quantity).toFixed(2)}
                 </span>
                 <button
                   onClick={() => removeFromCart(item.id)}
@@ -148,7 +148,7 @@ export default function Cart() {
             <div>
               <p className="text-gray-500">Total Amount</p>
               <p className="text-3xl font-bold text-gray-900">
-                ${getTotalPrice().toFixed(2)}
+                ₹{getTotalPrice().toFixed(2)}
               </p>
             </div>
             <button

@@ -27,6 +27,8 @@ public class OrderService {
     // REMOVED: private final EmailService emailService;
     // ADDED: Inject KafkaTemplate
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    private final LedgerService ledgerService;
 
     @Transactional
     public Order checkoutCart(String customerEmail) {
@@ -61,18 +63,31 @@ public class OrderService {
 
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
-
-            if (product.getStockQuantity() < cartItem.getQuantity()) {
-                log.warn("Checkout failed - insufficient stock: productId={}, productName='{}', requested={}, available={}",
-                        product.getId(), product.getName(), cartItem.getQuantity(), product.getStockQuantity());
-                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
+            
+            // FLASH SALE LOCK: Prevent race conditions
+            String lockKey = "lock:product:" + product.getId();
+            Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "locked", java.time.Duration.ofSeconds(5));
+            
+            if (Boolean.FALSE.equals(locked)) {
+                log.warn("Flash sale traffic lock triggered for productId={}", product.getId());
+                throw new IllegalStateException("High traffic for " + product.getName() + "! Please try checking out again in a few seconds.");
             }
-
-            int updatedStock = product.getStockQuantity() - cartItem.getQuantity();
-            product.setStockQuantity(updatedStock);
-            productRepository.save(product);
-            log.debug("Stock updated: productId={}, productName='{}', qty={}, remainingStock={}",
-                    product.getId(), product.getName(), cartItem.getQuantity(), updatedStock);
+            
+            try {
+                if (product.getStockQuantity() < cartItem.getQuantity()) {
+                    log.warn("Checkout failed - insufficient stock: productId={}, productName='{}', requested={}, available={}",
+                            product.getId(), product.getName(), cartItem.getQuantity(), product.getStockQuantity());
+                    throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
+                }
+    
+                int updatedStock = product.getStockQuantity() - cartItem.getQuantity();
+                product.setStockQuantity(updatedStock);
+                productRepository.save(product);
+                log.debug("Stock updated: productId={}, productName='{}', qty={}, remainingStock={}",
+                        product.getId(), product.getName(), cartItem.getQuantity(), updatedStock);
+            } finally {
+                redisTemplate.delete(lockKey);
+            }
 
             OrderItem orderItem = OrderItem.builder()
                     .product(product)
@@ -156,18 +171,31 @@ public class OrderService {
 
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
-
-            if (product.getStockQuantity() < cartItem.getQuantity()) {
-                log.warn("Checkout failed - insufficient stock: productId={}, productName='{}', requested={}, available={}",
-                        product.getId(), product.getName(), cartItem.getQuantity(), product.getStockQuantity());
-                throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
+            
+            // FLASH SALE LOCK: Prevent race conditions
+            String lockKey = "lock:product:" + product.getId();
+            Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "locked", java.time.Duration.ofSeconds(5));
+            
+            if (Boolean.FALSE.equals(locked)) {
+                log.warn("Flash sale traffic lock triggered for productId={}", product.getId());
+                throw new IllegalStateException("High traffic for " + product.getName() + "! Please try checking out again in a few seconds.");
             }
-
-            int updatedStock = product.getStockQuantity() - cartItem.getQuantity();
-            product.setStockQuantity(updatedStock);
-            productRepository.save(product);
-            log.debug("Stock updated: productId={}, productName='{}', qty={}, remainingStock={}",
-                    product.getId(), product.getName(), cartItem.getQuantity(), updatedStock);
+            
+            try {
+                if (product.getStockQuantity() < cartItem.getQuantity()) {
+                    log.warn("Checkout failed - insufficient stock: productId={}, productName='{}', requested={}, available={}",
+                            product.getId(), product.getName(), cartItem.getQuantity(), product.getStockQuantity());
+                    throw new IllegalArgumentException("Insufficient stock for product: " + product.getName());
+                }
+    
+                int updatedStock = product.getStockQuantity() - cartItem.getQuantity();
+                product.setStockQuantity(updatedStock);
+                productRepository.save(product);
+                log.debug("Stock updated: productId={}, productName='{}', qty={}, remainingStock={}",
+                        product.getId(), product.getName(), cartItem.getQuantity(), updatedStock);
+            } finally {
+                redisTemplate.delete(lockKey);
+            }
 
             OrderItem orderItem = OrderItem.builder()
                     .product(product)
@@ -211,6 +239,9 @@ public class OrderService {
                     .collect(java.util.stream.Collectors.joining(","));
             kafkaTemplate.send("order-analytics", analyticsPayload);
         }
+
+        // Trigger Ledger Payout since the order is PAID
+        ledgerService.processOrderPayout(savedOrder);
 
         return savedOrder;
     }

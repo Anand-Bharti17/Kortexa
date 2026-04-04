@@ -75,7 +75,7 @@ export default function OrderHistory() {
                   <div className="flex items-center space-x-2">
                     <DollarSign size={16} className="text-gray-400" />
                     <span className="text-sm font-semibold text-gray-900">
-                      ${order.totalAmount}
+                      ₹{order.totalAmount}
                     </span>
                   </div>
                   <div>
@@ -125,9 +125,9 @@ export default function OrderHistory() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-500">Unit Price</p>
-                          <p className="font-semibold text-gray-900">${item.priceAtPurchase}</p>
+                          <p className="font-semibold text-gray-900">₹{item.priceAtPurchase}</p>
                           <p className="text-xs text-gray-600 mt-1">
-                            Total: ${(parseFloat(item.priceAtPurchase) * item.quantity).toFixed(2)}
+                            Total: ₹{(parseFloat(item.priceAtPurchase) * item.quantity).toFixed(2)}
                           </p>
                         </div>
                       </div>

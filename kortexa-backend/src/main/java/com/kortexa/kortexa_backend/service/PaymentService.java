@@ -16,6 +16,7 @@ public class PaymentService {
 
     private final OrderRepository orderRepository;
     private final RazorpayPaymentService razorpayPaymentService;
+    private final LedgerService ledgerService;
 
     @Transactional
     public String processPayment(Long orderId, String cardNumber, String customerEmail) {
@@ -47,6 +48,9 @@ public class PaymentService {
         // 5. Payment Succeeded! Update the order status to PAID
         order.setStatus(OrderStatus.PAID);
         orderRepository.save(order);
+        
+        // 6. Trigger Ledger & Payouts processing for the paid order
+        ledgerService.processOrderPayout(order);
 
         log.info("Payment successful via Razorpay: orderId={}, customer={}, transactionId={}", orderId, customerEmail, transactionId);
         return transactionId;

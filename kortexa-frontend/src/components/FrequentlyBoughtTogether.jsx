@@ -64,7 +64,7 @@ export default function FrequentlyBoughtTogether({ productId }) {
               )}
 
               <p className="font-bold text-base text-gray-900 mt-2">
-                ${parseFloat(product.price).toFixed(2)}
+                ₹{parseFloat(product.price).toFixed(2)}
               </p>
             </div>
           </div>

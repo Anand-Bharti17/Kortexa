@@ -177,7 +177,7 @@ export default function Home() {
                 {/* Price */}
                 <div className="mt-4 flex items-center justify-between">
                   <span className="font-bold text-xl text-gray-900">
-                    ${parseFloat(product.price).toFixed(2)}
+                    ₹{parseFloat(product.price).toFixed(2)}
                   </span>
                   <button
                     onClick={(e) => handleAddToCart(e, product)}

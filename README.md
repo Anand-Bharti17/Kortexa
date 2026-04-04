@@ -12,6 +12,7 @@ A full-stack e-commerce solution with a Spring Boot 3 backend and React + Vite f
 * **Cloud Media Management (Cloudinary):** Direct integration with the Cloudinary API for secure, highly available, and scalable cloud-hosted product image management.
 * **Payment Gateway (Razorpay):** Built-in Razorpay order creation and verification to support secure, modern checkout workflows.
 * **Advanced Security (JWT & Spring Security):** Secure, stateless authentication using JSON Web Tokens. Implements strict Role-Based Access Control (RBAC) ensuring separation of concerns between `ADMIN` and `CUSTOMER` profiles.
+* **Immutable Financial Ledger:** High-precision `BigDecimal` accounting engine to automatically process split payouts (Platform Commission vs. Vendor Wallet) securely upon verified checkouts.
 * **Containerized Infrastructure (Docker):** A complete `docker-compose` ecosystem for immediate, reliable provisioning of the PostgreSQL database, Redis cache, and Kafka broker.
 
 ---
@@ -171,11 +172,12 @@ Kortexa features auto-generated, interactive OpenAPI documentation via Swagger U
 ### 📦 Orders & Checkout (`/api/orders`)
 * `POST /checkout` **(Customer)**
     * **The Core Transactional Engine:**
-        1. Validates cart items against real-time database stock.
-        2. Deducts purchased quantities from the global inventory.
-        3. Locks in purchase prices and creates immutable `Order` and `OrderItem` records.
-        4. Wipes the user's shopping cart.
-        5. 📨 **Event Trigger:** Produces async payloads to **Apache Kafka** `order-emails` and `order-analytics` topics and immediately returns a `200 OK` to the client.
+        1. Evaluates concurrency and applies an **Atomic Redis Lock** per product to definitively prevent overselling during high-traffic Flash Sales.
+        2. Validates cart items against real-time database stock.
+        3. Deducts purchased quantities from the global inventory and unlocks the Redis monitor.
+        4. Locks in purchase prices and creates immutable `Order` and `OrderItem` records.
+        5. Wipes the user's shopping cart.
+        6. 📨 **Event Trigger:** Produces async payloads to **Apache Kafka** `order-emails` and `order-analytics` topics and immediately returns a `200 OK` to the client.
 * `POST /checkout/razorpay` **(Customer)**
     * Completes checkout by verifying Razorpay payment confirmation and creating a fully paid `Order` in a single transactional flow.
 * `GET /history` **(Customer)**
@@ -187,7 +189,12 @@ Kortexa features auto-generated, interactive OpenAPI documentation via Swagger U
 * `GET /razorpay/order` **(Customer)**
     * Builds a Razorpay order payload from the authenticated user's cart total and returns the Razorpay `order_id` and `key_id`.
 * `POST /charge` **(Customer)**
-    * Processes payment for an existing `PENDING` order using internal Razorpay-style validation. Updates the order status to `PAID` and returns a transaction receipt.
+    * Processes payment for an existing `PENDING` order using internal Razorpay-style validation. Updates the order status to `PAID`, securely triggers the **Ledger** to issue the Vendor's revenue cut, and returns a transaction receipt.
+
+### 💰 Vendor Payouts & Ledgers (`Internal Server Scope`)
+* `LedgerService.processOrderPayout()` **(System Daemon)**
+    * Handles strictly ACID transaction propagation using Java `BigDecimal` and `RoundingMode`.
+    * Atomically intercepts `PAID` events, slices an exact 10% platform commission from the revenue, and immutably appends a `VENDOR_PAYOUT` entry to the `<Ledger>` securing funds into the `<Wallet>` tables.
 
 ---
 

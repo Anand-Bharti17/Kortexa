@@ -46,7 +46,7 @@ export default function RecentlyViewed() {
                 {product.name}
               </h3>
               <p className="font-bold text-sm text-gray-900 mt-1">
-                ${parseFloat(product.price).toFixed(2)}
+                ₹{parseFloat(product.price).toFixed(2)}
               </p>
             </div>
           </div>

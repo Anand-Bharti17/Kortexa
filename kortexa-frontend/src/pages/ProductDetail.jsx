@@ -191,7 +191,7 @@ export default function ProductDetail() {
             <div className="mb-6">
               <p className="text-gray-600 text-sm mb-2">Price</p>
               <p className="text-4xl font-bold text-gray-900">
-                ${parseFloat(product.price).toFixed(2)}
+                ₹{parseFloat(product.price).toFixed(2)}
               </p>
             </div>
 
