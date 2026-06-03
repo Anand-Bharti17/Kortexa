@@ -78,8 +78,15 @@ public class RazorpayGatewayService {
 
     public boolean verifySignature(String razorpayPaymentId, String razorpayOrderId, String razorpaySignature) {
         if (razorpayKeySecret == null || razorpayKeySecret.isBlank()) {
-            log.warn("Razorpay key secret not configured; skipping signature verification");
-            return true;
+            log.error("Razorpay key secret not configured; rejecting payment verification");
+            return false;
+        }
+
+        if (razorpayPaymentId == null || razorpayPaymentId.isBlank()
+                || razorpayOrderId == null || razorpayOrderId.isBlank()
+                || razorpaySignature == null || razorpaySignature.isBlank()) {
+            log.warn("Missing Razorpay payment verification fields");
+            return false;
         }
 
         try {

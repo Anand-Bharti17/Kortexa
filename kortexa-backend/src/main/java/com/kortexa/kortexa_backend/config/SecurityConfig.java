@@ -13,7 +13,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -21,7 +23,14 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final AuthRateLimitFilter authRateLimitFilter;
     private final AuthenticationProvider authenticationProvider;
+
+    @Value("${app.security.cors-allowed-origins:http://localhost:5173}")
+    private String corsAllowedOrigins;
+
+    @Value("${app.security.expose-openapi:false}")
+    private boolean exposeOpenApi;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -31,42 +40,43 @@ public class SecurityConfig {
 
                 // 2. DISABLE CSRF (Required for JWT REST APIs)
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/health").permitAll()
-                        .requestMatchers("/api/products/store").permitAll()
-
-                        // THE FIX: Allow anyone to VIEW products (GET requests)
-                        // Note: We explicitly list both the root path and sub-paths for Spring Boot 3 strict matching
-                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
-
-                        .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-ui/**").permitAll()
-                        .requestMatchers("/swagger-ui.html").permitAll()
-
-                        // 1. CUSTOMER
-                        .requestMatchers(HttpMethod.POST, "/api/reviews/product/**").hasRole("CUSTOMER")
-                        .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
-                        .requestMatchers("/api/wishlist/**").hasRole("CUSTOMER")
-                        .requestMatchers("/api/orders/vendor/**").hasRole("VENDOR") // Allow VENDORS to see their own stats/orders
-                        .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
-                        .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
-
-                        // 2. VENDOR: Only affects POST, PUT, DELETE because GET was already permitted above!
-                        .requestMatchers("/api/products/**").hasRole("VENDOR")
-
-                        // 3. ADMIN
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-
-                        .anyRequest().authenticated()
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(contentType -> {})
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31_536_000))
                 )
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/api/auth/**").permitAll()
+                            .requestMatchers("/api/health").permitAll()
+                            .requestMatchers("/api/products/store", "/api/products/store/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
+                            .requestMatchers("/api/payments/charge").denyAll();
+
+                    if (exposeOpenApi) {
+                        auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                    } else {
+                        auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
+                    }
+
+                    auth.requestMatchers(HttpMethod.POST, "/api/reviews/product/**").hasRole("CUSTOMER")
+                            .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
+                            .requestMatchers("/api/wishlist/**").hasRole("CUSTOMER")
+                            .requestMatchers("/api/orders/vendor/**").hasRole("VENDOR")
+                            .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
+                            .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
+                            .requestMatchers("/api/products/**").hasRole("VENDOR")
+                            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                            .anyRequest().authenticated();
+                })
                 // NEW: Tell Spring NOT to create a session (we are using JWTs)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authenticationProvider(authenticationProvider)
-                // NEW: Add our JWT filter before the standard login filter
+                .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -77,7 +87,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Allow your Vite frontend URL
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        List<String> origins = Arrays.stream(corsAllowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
+        configuration.setAllowedOrigins(origins);
         // Allow these HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Allow all headers (including Authorization for JWT)

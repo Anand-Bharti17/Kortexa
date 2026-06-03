@@ -17,9 +17,27 @@ public class ImageUploadService {
 
     private final Cloudinary cloudinary;
 
+    private static final long MAX_BYTES = 5 * 1024 * 1024;
+
     public String uploadImage(MultipartFile file) throws IOException {
         log.info("Image upload request received: filename='{}', size={} bytes", file.getOriginalFilename(), file.getSize());
-        // Upload the file and let Cloudinary auto-detect the file type
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Image file is required");
+        }
+        if (file.getSize() > MAX_BYTES) {
+            throw new IllegalArgumentException("Image must be 5 MB or smaller");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null
+                || !(contentType.equals("image/jpeg")
+                || contentType.equals("image/png")
+                || contentType.equals("image/webp")
+                || contentType.equals("image/gif"))) {
+            throw new IllegalArgumentException("Only JPEG, PNG, WebP, or GIF images are allowed");
+        }
+
         try {
             Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
             String secureUrl = uploadResult.get("secure_url").toString();

@@ -74,11 +74,14 @@ public class AuthService {
         var user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // 3. THE FIX: Enforce Account Status for Vendors
         if (user.getStatus() == AccountStatus.PENDING_APPROVAL) {
             log.warn("Login blocked - Account pending approval for email: {}", user.getEmail());
-            // We use a specific keyword "PENDING_APPROVAL" so React can easily spot it
             throw new RuntimeException("PENDING_APPROVAL: Your vendor account is waiting for Admin approval.");
+        }
+
+        if (user.getStatus() == AccountStatus.SUSPENDED) {
+            log.warn("Login blocked - Account suspended for email: {}", user.getEmail());
+            throw new RuntimeException("ACCOUNT_SUSPENDED: Your account has been suspended. Contact support.");
         }
 
         // 4. Build a Spring Security UserDetails object

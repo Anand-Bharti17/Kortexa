@@ -4,6 +4,7 @@ import com.kortexa.kortexa_backend.dto.RazorpayPaymentConfirmation;
 import com.kortexa.kortexa_backend.dto.VendorSalesStats;
 import com.kortexa.kortexa_backend.model.Order;
 import com.kortexa.kortexa_backend.service.OrderService;
+import com.kortexa.kortexa_backend.service.RazorpayGatewayService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final RazorpayGatewayService razorpayGatewayService;
 
     // 1. Convert the current Cart into a final Order
     @PostMapping("/checkout")
@@ -34,7 +36,20 @@ public class OrderController {
             @Valid @RequestBody RazorpayPaymentConfirmation paymentConfirmation,
             Principal principal) {
         log.info("Razorpay checkout confirmation received: user={}", principal.getName());
-        Order completedOrder = orderService.checkoutCartAndPay(principal.getName(), paymentConfirmation.getRazorpayPaymentId());
+
+        boolean signatureValid = razorpayGatewayService.verifySignature(
+                paymentConfirmation.getRazorpayPaymentId(),
+                paymentConfirmation.getRazorpayOrderId(),
+                paymentConfirmation.getRazorpaySignature());
+
+        if (!signatureValid) {
+            log.warn("Razorpay signature verification failed for user={}", principal.getName());
+            throw new SecurityException("Payment verification failed. Order was not created.");
+        }
+
+        Order completedOrder = orderService.checkoutCartAndPay(
+                principal.getName(),
+                paymentConfirmation.getRazorpayPaymentId());
         return ResponseEntity.ok(completedOrder);
     }
 

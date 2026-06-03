@@ -55,13 +55,19 @@ public class CartService {
                 .findFirst();
 
         if (existingItem.isPresent()) {
-            // If it's already there, just increase the quantity
             CartItem item = existingItem.get();
             int newQty = item.getQuantity() + request.getQuantity();
+            if (newQty > product.getStockQuantity()) {
+                throw new IllegalArgumentException(
+                        "Only " + product.getStockQuantity() + " units available for " + product.getName());
+            }
             log.debug("Product already in cart. Updating quantity: productId={}, oldQty={}, newQty={}", product.getId(), item.getQuantity(), newQty);
             item.setQuantity(newQty);
         } else {
-            // Otherwise, create a new cart item
+            if (request.getQuantity() > product.getStockQuantity()) {
+                throw new IllegalArgumentException(
+                        "Only " + product.getStockQuantity() + " units available for " + product.getName());
+            }
             log.debug("Adding new item to cart: productId={}, quantity={}", product.getId(), request.getQuantity());
             CartItem newItem = CartItem.builder()
                     .product(product)
