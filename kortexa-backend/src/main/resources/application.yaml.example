@@ -60,6 +60,11 @@ cloudinary:
   api-key: ${CLOUDINARY_API_KEY:}
   api-secret: ${CLOUDINARY_API_SECRET:}
 
+# Storefront and Razorpay use the same currency code (INR recommended for India).
+app:
+  payment:
+    currency: INR
+
 razorpay:
   key-id: ${RAZORPAY_KEY_ID:}
   key-secret: ${RAZORPAY_KEY_SECRET:}

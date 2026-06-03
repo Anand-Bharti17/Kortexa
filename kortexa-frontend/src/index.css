@@ -54,6 +54,7 @@
 
   /* Search hero — animated border when AI mode is on */
   .search-hero-ai-ring {
+    overflow: visible;
     border-radius: 1rem;
     padding: 2px;
     background: linear-gradient(
@@ -92,6 +93,7 @@
   }
 
   .search-hero-ai-ring .search-hero-inner {
+    overflow: visible;
     border-radius: calc(1rem - 2px);
   }
 }

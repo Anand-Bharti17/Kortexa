@@ -174,8 +174,11 @@ export default function Cart() {
             disabled={isCheckingOut}
             className="btn-primary mt-6 w-full !py-3.5"
           >
-            {isCheckingOut ? "Processing..." : "Pay with Razorpay"}
+            {isCheckingOut ? "Processing..." : "Pay with Razorpay (INR)"}
           </button>
+          <p className="mt-2 text-center text-xs text-slate-500">
+            Checkout amount matches cart total in Indian Rupees (₹).
+          </p>
           <Link
             to="/"
             className="mt-3 block text-center text-sm font-medium text-indigo-600 hover:text-indigo-700"

@@ -12,8 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.Principal;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 
 @Slf4j
 @RestController
@@ -25,6 +27,10 @@ public class PaymentController {
     private final CartRepository cartRepository;
     private final RazorpayGatewayService razorpayGatewayService;
 
+    /** Must match storefront display currency (see frontend `STORE_CURRENCY`). */
+    @Value("${app.payment.currency:INR}")
+    private String paymentCurrency;
+
     @GetMapping("/razorpay/order")
     public ResponseEntity<RazorpayOrderResponse> createRazorpayOrder(Principal principal) {
         String email = principal.getName();
@@ -33,9 +39,23 @@ public class PaymentController {
         if (cart.getItems().isEmpty()) {
             throw new IllegalArgumentException("Cart is empty");
         }
-        Long amountInPaise = cart.getTotalPrice().multiply(BigDecimal.valueOf(100)).longValue();
-        RazorpayOrderResponse razorpayOrder = razorpayGatewayService.createOrder(amountInPaise, "INR");
+        String currency = paymentCurrency == null || paymentCurrency.isBlank()
+                ? "INR"
+                : paymentCurrency.trim().toUpperCase();
+        long amountMinorUnits = toMinorUnits(cart.getTotalPrice());
+        RazorpayOrderResponse razorpayOrder = razorpayGatewayService.createOrder(amountMinorUnits, currency);
         return ResponseEntity.ok(razorpayOrder);
+    }
+
+    /** Converts major units (e.g. ₹) to minor units (paise) for Razorpay. */
+    private long toMinorUnits(BigDecimal amountMajor) {
+        if (amountMajor == null) {
+            return 0L;
+        }
+        return amountMajor
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValue();
     }
 
     @PostMapping("/charge")

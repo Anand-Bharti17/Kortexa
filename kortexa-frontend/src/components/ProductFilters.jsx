@@ -61,7 +61,7 @@ export default function ProductFilters({
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-            Min price ($)
+            Min price (₹)
           </label>
           <input
             type="number"
@@ -76,7 +76,7 @@ export default function ProductFilters({
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-            Max price ($)
+            Max price (₹)
           </label>
           <input
             type="number"

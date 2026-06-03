@@ -87,18 +87,18 @@ export default function SearchWithSuggestions({
 
   return (
     <section
-      className={
+      className={`${
         aiSearchMode
           ? "search-hero-ai-ring"
-          : "search-hero-surface overflow-hidden rounded-2xl border border-indigo-100 shadow-md shadow-indigo-200/40"
-      }
+          : "search-hero-surface rounded-2xl border border-indigo-100 shadow-md shadow-indigo-200/40"
+      } relative z-20 overflow-visible`}
     >
       <div
-        className={`space-y-3 p-4 sm:p-5 ${
+        className={`space-y-3 overflow-visible p-4 sm:p-5 ${
           aiSearchMode ? "search-hero-inner search-hero-surface" : ""
         }`}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+        <div className="flex flex-col gap-3 overflow-visible sm:flex-row sm:items-start sm:gap-5">
           <div className="shrink-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
               {BRAND_NAME}
@@ -108,70 +108,36 @@ export default function SearchWithSuggestions({
             </h1>
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center"
-          >
-            <div ref={wrapperRef} className="relative min-w-0 flex-1">
-              <Search
-                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400"
-                size={18}
-              />
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => suggestions.length > 0 && setSuggestionsOpen(true)}
-                placeholder={
-                  aiSearchMode
-                    ? "e.g. kids driving toys"
-                    : "Search products — results update as you type"
-                }
-                autoComplete="off"
-                className="w-full rounded-xl border-0 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-md placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 sm:py-3"
-              />
-              {(liveLoading || aiSearching) && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-indigo-500">
-                  …
-                </span>
-              )}
-              {suggestionsOpen && suggestions.length > 0 && (
-                <ul
-                  className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
-                  role="listbox"
-                >
-                  {suggestions.map((item) => (
-                    <li key={item.id} role="option">
-                      <button
-                        type="button"
-                        onClick={() => pickSuggestion(item)}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-indigo-50"
-                      >
-                        {item.imageUrl ? (
-                          <img
-                            src={item.imageUrl}
-                            alt=""
-                            className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 shrink-0 rounded-lg bg-slate-100" />
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium text-slate-900">
-                            {item.name}
-                          </span>
-                          <span className="text-xs text-slate-500">{item.category}</span>
-                        </span>
-                        <span className="shrink-0 text-sm font-semibold text-indigo-700">
-                          {formatPrice(item.price)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <button
+          <div ref={wrapperRef} className="flex min-w-0 flex-1 flex-col gap-2">
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-2 overflow-visible sm:flex-row sm:items-center"
+            >
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onFocus={() => suggestions.length > 0 && setSuggestionsOpen(true)}
+                  placeholder={
+                    aiSearchMode
+                      ? "e.g. kids driving toys"
+                      : "Search products — results update as you type"
+                  }
+                  autoComplete="off"
+                  className="w-full rounded-xl border-0 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-md placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 sm:py-3"
+                />
+                {(liveLoading || aiSearching) && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-indigo-500">
+                    …
+                  </span>
+                )}
+              </div>
+              <button
               type="button"
               onClick={() => {
                 setAiSearchMode((v) => !v);
@@ -201,7 +167,46 @@ export default function SearchWithSuggestions({
             >
               {aiSearching ? "Thinking..." : aiSearchMode ? "AI Search" : "Search"}
             </button>
-          </form>
+            </form>
+
+            {suggestionsOpen && suggestions.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white shadow-lg ring-1 ring-slate-200/80">
+                <p className="border-b border-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Suggestions
+                </p>
+                <ul className="max-h-72 overflow-auto py-1" role="listbox" aria-label="Product suggestions">
+                  {suggestions.map((item) => (
+                    <li key={item.id} role="option">
+                      <button
+                        type="button"
+                        onClick={() => pickSuggestion(item)}
+                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-indigo-50"
+                      >
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt=""
+                            className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 shrink-0 rounded-lg bg-slate-100" />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-slate-900">
+                            {item.name}
+                          </span>
+                          <span className="text-xs text-slate-500">{item.category}</span>
+                        </span>
+                        <span className="shrink-0 text-sm font-semibold text-indigo-700">
+                          {formatPrice(item.price)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
 
         {aiSearchMode && (
