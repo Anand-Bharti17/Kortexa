@@ -6,10 +6,12 @@ import {
   Loader,
   Sparkles,
   Store,
+  Heart,
 } from "lucide-react";
 import api from "../services/api";
 import useCartStore from "../store/useCartStore";
 import useAuthStore from "../store/useAuthStore";
+import useWishlistStore from "../store/useWishlistStore";
 import { useToast } from "../components/ui/Toast";
 import StarRating from "../components/ui/StarRating";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
@@ -34,10 +36,17 @@ export default function ProductDetail() {
 
   const addToCart = useCartStore((state) => state.addToCart);
   const { isAuthenticated, userRole } = useAuthStore();
+  const { fetchWishlistIds, isWishlisted, toggleWishlist } = useWishlistStore();
 
   useEffect(() => {
     fetchProductDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWishlistIds();
+    }
+  }, [isAuthenticated, fetchWishlistIds]);
 
   const fetchProductDetails = async () => {
     try {
@@ -168,9 +177,31 @@ export default function ProductDetail() {
             </span>
           )}
 
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            {product.name}
-          </h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              {product.name}
+            </h1>
+            {isAuthenticated && userRole === "CUSTOMER" && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const added = await toggleWishlist(product.id);
+                  showToast(added ? "Saved to wishlist" : "Removed from wishlist");
+                }}
+                className="shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:bg-slate-50"
+                aria-label="Toggle wishlist"
+              >
+                <Heart
+                  size={22}
+                  className={
+                    isWishlisted(product.id)
+                      ? "fill-red-500 text-red-500"
+                      : "text-slate-400"
+                  }
+                />
+              </button>
+            )}
+          </div>
 
           {product.reviewCount > 0 && (
             <div className="mt-3">

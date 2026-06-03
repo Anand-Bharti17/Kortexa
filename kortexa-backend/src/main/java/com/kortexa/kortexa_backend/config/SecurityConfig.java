@@ -48,6 +48,7 @@ public class SecurityConfig {
                         // 1. CUSTOMER
                         .requestMatchers(HttpMethod.POST, "/api/reviews/product/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
+                        .requestMatchers("/api/wishlist/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/orders/vendor/**").hasRole("VENDOR") // Allow VENDORS to see their own stats/orders
                         .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/payments/**").hasRole("CUSTOMER")

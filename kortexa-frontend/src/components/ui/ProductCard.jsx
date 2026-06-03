@@ -1,4 +1,4 @@
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Heart } from "lucide-react";
 import StarRating from "./StarRating";
 import { formatPrice } from "../../utils/currency";
 
@@ -6,6 +6,8 @@ export default function ProductCard({
   product,
   onClick,
   onAddToCart,
+  onWishlistToggle,
+  wishlisted = false,
   compact = false,
 }) {
   return (
@@ -30,6 +32,19 @@ export default function ProductCard({
           <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-indigo-700 shadow-sm backdrop-blur-sm">
             {product.category}
           </span>
+        )}
+        {onWishlistToggle && (
+          <button
+            type="button"
+            onClick={onWishlistToggle}
+            className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-2 shadow-md transition hover:scale-105"
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart
+              size={18}
+              className={wishlisted ? "fill-red-500 text-red-500" : "text-slate-500"}
+            />
+          </button>
         )}
       </div>
 

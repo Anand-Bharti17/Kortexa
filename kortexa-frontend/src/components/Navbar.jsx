@@ -15,9 +15,11 @@ import {
   X,
   Sparkles,
   Home,
+  Heart,
 } from "lucide-react";
 import useAuthStore from "../store/useAuthStore";
 import useCartStore from "../store/useCartStore";
+import useWishlistStore from "../store/useWishlistStore";
 import { BRAND_NAME, BRAND_VENDOR, BRAND_ADMIN } from "../config/brand";
 
 const ROLE_STYLES = {
@@ -68,6 +70,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     setMobileOpen(false);
+    useWishlistStore.getState().clearWishlist();
     logout();
     navigate("/login");
   };
@@ -98,6 +101,7 @@ export default function Navbar() {
   } else if (userRole === "CUSTOMER") {
     navLinks = [
       { to: "/", icon: Package, label: "Products" },
+      { to: "/wishlist", icon: Heart, label: "Wishlist" },
       { to: "/cart", icon: ShoppingCart, label: "Cart", badge: totalItems },
       { to: "/orders", icon: History, label: "Orders" },
       { to: "/profile", icon: User, label: "Profile" },

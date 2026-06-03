@@ -12,6 +12,7 @@ import VendorDashboard from "./pages/VendorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProductDetail from "./pages/ProductDetail";
 import Profile from "./pages/Profile";
+import Wishlist from "./pages/Wishlist";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/order-success" element={<OrderSuccess />} />
               <Route path="/orders" element={<OrderHistory />} />
               <Route path="/product/:id" element={<ProductDetail />} />
