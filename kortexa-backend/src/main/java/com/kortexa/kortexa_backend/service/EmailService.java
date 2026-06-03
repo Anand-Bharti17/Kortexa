@@ -47,8 +47,8 @@ public class EmailService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
-            message.setSubject("Order Confirmation - Kortexa #" + orderId);
-            message.setText("Thank you for shopping with Kortexa!\n\n" +
+            message.setSubject("Order Confirmation - Veluno #" + orderId);
+            message.setText("Thank you for shopping with Veluno!\n\n" +
                     "Your order #" + orderId + " has been successfully processed.\n" +
                     "Total Amount: $" + totalAmount + "\n\n" +
                     "We will notify you as soon as your items ship!");

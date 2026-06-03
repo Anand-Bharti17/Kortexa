@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PackagePlus, UploadCloud, Edit2, BarChart3, DollarSign, TrendingUp, Package } from "lucide-react";
 import api from "../services/api";
+import { formatPrice } from "../utils/currency";
 
 export default function VendorDashboard() {
   const [searchParams] = useSearchParams();
@@ -231,7 +232,7 @@ export default function VendorDashboard() {
                 <div>
                   <p className="text-sm text-gray-500 font-medium whitespace-nowrap">Total Revenue</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    ₹{Number(stats?.totalRevenue || 0).toFixed(2)}
+                    {formatPrice(stats?.totalRevenue || 0)}
                   </p>
                 </div>
               </div>
@@ -280,7 +281,7 @@ export default function VendorDashboard() {
                           <td className="px-6 py-4 font-medium text-gray-900">{item.productName}</td>
                           <td className="px-6 py-4 text-center text-gray-600">{item.quantitySold}</td>
                           <td className="px-6 py-4 text-right font-bold text-gray-900">
-                            ₹{Number(item.totalRevenue || 0).toFixed(2)}
+                            {formatPrice(item.totalRevenue || 0)}
                           </td>
                         </tr>
                       ))}
@@ -334,7 +335,7 @@ export default function VendorDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price (₹)
+                      Price ($)
                     </label>
                     <input
                       type="number"
@@ -460,7 +461,7 @@ export default function VendorDashboard() {
                         <div className="flex items-center justify-between mt-4 bg-white p-2 rounded-lg border border-gray-100">
                           <div>
                             <p className="text-[10px] text-gray-400 uppercase font-bold">Price</p>
-                            <p className="font-bold text-gray-900">₹{product.price}</p>
+                            <p className="font-bold text-gray-900">{formatPrice(product.price)}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-[10px] text-gray-400 uppercase font-bold">Stock</p>
@@ -523,7 +524,7 @@ export default function VendorDashboard() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price (₹)
+                    Price ($)
                   </label>
                   <input
                     type="number"

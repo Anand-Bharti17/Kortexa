@@ -1,6 +1,6 @@
-# 🛒 Kortexa E-Commerce Platform
+# 🛒 Veluno E-Commerce Platform
 
-A full-stack e-commerce solution with a Spring Boot 3 backend and React + Vite frontend. Kortexa is designed to handle high-traffic commerce operations by leveraging a robust microservice-adjacent architecture, in-memory caching, asynchronous event streaming, cloud media storage, and AI-driven content generation.
+A full-stack e-commerce solution with a Spring Boot 3 backend and React + Vite frontend. **Veluno** is designed to handle high-traffic commerce operations by leveraging a robust microservice-adjacent architecture, in-memory caching, asynchronous event streaming, cloud media storage, and AI-driven content generation.
 
 ---
 
@@ -120,7 +120,7 @@ mvn spring-boot:run
 
 ## 📖 Interactive API Documentation
 
-Kortexa features auto-generated, interactive OpenAPI documentation via Swagger UI. Once the application is running, navigate here to explore and test endpoints directly from your browser:
+Veluno features auto-generated, interactive OpenAPI documentation via Swagger UI. Once the application is running, navigate here to explore and test endpoints directly from your browser:
 
 🔗 **Swagger UI:** `http://localhost:8080/swagger-ui/index.html`
 

@@ -1,7 +1,23 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Package, Calendar, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  Package,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  ShoppingBag,
+} from "lucide-react";
 import api from "../services/api";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
+import { formatPrice } from "../utils/currency";
+
+const statusStyles = {
+  PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  DELIVERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  PENDING: "bg-amber-50 text-amber-800 border-amber-200",
+  CANCELLED: "bg-red-50 text-red-700 border-red-200",
+};
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState([]);
@@ -19,127 +35,123 @@ export default function OrderHistory() {
         setLoading(false);
       }
     };
-
     fetchOrderHistory();
   }, []);
 
-  const toggleExpandOrder = (orderId) => {
-    setExpandedOrder(expandedOrder === orderId ? null : orderId);
-  };
-
   if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto py-8 text-center">
-        <div className="animate-pulse text-gray-400">Loading order history...</div>
-      </div>
-    );
+    return <LoadingSpinner label="Loading orders..." />;
   }
 
   if (orders.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto py-8 text-center">
-        <Package size={48} className="mx-auto text-gray-300 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">No Orders Yet</h2>
-        <p className="text-gray-600">You haven't placed any orders yet. Start shopping to see your order history here!</p>
+      <div className="mx-auto max-w-lg rounded-3xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+        <Package size={48} className="mx-auto text-slate-300" />
+        <h2 className="mt-4 text-2xl font-bold text-slate-900">No orders yet</h2>
+        <p className="mt-2 text-slate-500">
+          Your order history will appear here after your first purchase.
+        </p>
+        <Link to="/" className="btn-primary mt-8 inline-flex">
+          <ShoppingBag size={18} />
+          Start shopping
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <div className="flex items-center space-x-3 mb-8">
-        <Package size={32} className="text-blue-600" />
-        <h1 className="text-3xl font-bold text-gray-900">Order History</h1>
-      </div>
+    <div className="mx-auto max-w-3xl">
+      <h1 className="section-title mb-8">Order history</h1>
 
       <div className="space-y-4">
-        {orders.map((order) => (
-          <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-            {/* Order Header */}
-            <button
-              onClick={() => toggleExpandOrder(order.id)}
-              className="w-full px-6 py-4 hover:bg-gray-50 transition flex items-center justify-between"
+        {orders.map((order) => {
+          const isExpanded = expandedOrder === order.id;
+          const statusClass =
+            statusStyles[order.status] ||
+            "bg-indigo-50 text-indigo-700 border-indigo-200";
+
+          return (
+            <div
+              key={order.id}
+              className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
             >
-              <div className="flex-1 text-left">
-                <div className="flex items-center space-x-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Order #</p>
-                    <p className="text-lg font-semibold text-gray-900">{order.id}</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Calendar size={16} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedOrder(isExpanded ? null : order.id)
+                }
+                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-slate-50 sm:px-6"
+              >
+                <div className="min-w-0 flex-1 space-y-2 sm:space-y-0">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <div>
+                      <p className="text-xs font-medium text-slate-500">
+                        Order
+                      </p>
+                      <p className="font-bold text-slate-900">#{order.id}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                      <Calendar size={14} />
                       {format(new Date(order.orderDate), "MMM dd, yyyy")}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <DollarSign size={16} className="text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-900">
-                      ₹{order.totalAmount}
-                    </span>
-                  </div>
-                  <div>
+                    </div>
+                    <p className="font-bold text-slate-900">
+                      {formatPrice(order.totalAmount)}
+                    </p>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        order.status === "PAID" || order.status === "DELIVERED"
-                          ? "bg-green-100 text-green-800 border border-green-200"
-                          : order.status === "PENDING"
-                          ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
-                          : order.status === "CANCELLED"
-                          ? "bg-red-100 text-red-800 border border-red-200"
-                          : "bg-blue-100 text-blue-800 border border-blue-200"
-                      }`}
+                      className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusClass}`}
                     >
                       {order.status}
                     </span>
                   </div>
                 </div>
-              </div>
-              <div className="ml-4">
-                {expandedOrder === order.id ? (
-                  <ChevronUp size={20} className="text-gray-400" />
+                {isExpanded ? (
+                  <ChevronUp className="shrink-0 text-slate-400" size={20} />
                 ) : (
-                  <ChevronDown size={20} className="text-gray-400" />
+                  <ChevronDown className="shrink-0 text-slate-400" size={20} />
                 )}
-              </div>
-            </button>
+              </button>
 
-            {/* Order Items (Expanded View) */}
-            {expandedOrder === order.id && (
-              <div className="border-t border-gray-100 px-6 py-4 bg-gray-50">
-                <div className="space-y-4">
-                  {order.items && order.items.length > 0 ? (
-                    order.items.map((item) => (
-                      <div key={item.id} className="flex items-center space-x-4 pb-4 border-b border-gray-200 last:border-b-0">
-                        {item.product?.imageUrl && (
-                          <img
-                            src={item.product.imageUrl}
-                            alt={item.product?.name}
-                            className="w-16 h-16 object-cover rounded-lg"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{item.product?.name}</h4>
-                          <p className="text-sm text-gray-600">Category: {item.product?.category}</p>
-                          <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
+              {isExpanded && (
+                <div className="border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
+                  {order.items?.length > 0 ? (
+                    <div className="space-y-4">
+                      {order.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex gap-4 border-b border-slate-200/80 pb-4 last:border-0 last:pb-0"
+                        >
+                          {item.product?.imageUrl && (
+                            <img
+                              src={item.product.imageUrl}
+                              alt={item.product?.name}
+                              className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-semibold text-slate-900">
+                              {item.product?.name}
+                            </h4>
+                            <p className="text-sm text-slate-500">
+                              Qty: {item.quantity}
+                            </p>
+                          </div>
+                          <div className="text-right text-sm">
+                            <p className="font-bold text-slate-900">
+                              {formatPrice(
+                                parseFloat(item.priceAtPurchase) * item.quantity,
+                              )}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">Unit Price</p>
-                          <p className="font-semibold text-gray-900">₹{item.priceAtPurchase}</p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Total: ₹{(parseFloat(item.priceAtPurchase) * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   ) : (
-                    <p className="text-gray-500">No items in this order</p>
+                    <p className="text-slate-500">No items in this order</p>
                   )}
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { useNavigate,Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
+import { BRAND_NAME } from "../config/brand";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,107 +19,99 @@ export default function Login() {
 
     try {
       const response = await api.post("/auth/login", { email, password });
-
       const token = response.data.token;
       login(token);
 
       const payload = JSON.parse(atob(token.split(".")[1]));
-      let rawRole = payload.role || payload.roles || payload.authorities || "CUSTOMER";
+      let rawRole =
+        payload.role || payload.roles || payload.authorities || "CUSTOMER";
 
-      // Consistently extract and clean prefix
       if (Array.isArray(rawRole) && rawRole.length > 0) {
-        rawRole = typeof rawRole[0] === 'object' ? rawRole[0].authority : rawRole[0];
-      } else if (typeof rawRole === 'object' && rawRole !== null) {
+        rawRole =
+          typeof rawRole[0] === "object" ? rawRole[0].authority : rawRole[0];
+      } else if (typeof rawRole === "object" && rawRole !== null) {
         rawRole = rawRole.authority || "CUSTOMER";
       }
 
       const role = String(rawRole).replace("ROLE_", "").toUpperCase();
 
-      if (role === "VENDOR") {
-        navigate("/vendor");
-      } else if (role === "ADMIN") {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+      if (role === "VENDOR") navigate("/vendor");
+      else if (role === "ADMIN") navigate("/admin");
+      else navigate("/");
     } catch (err) {
-      // 🕵️ PRINT THE EXACT ERROR TO THE CONSOLE
-      console.log("RAW ERROR FROM BACKEND:", err);
-      console.log("ERROR RESPONSE DATA:", err.response?.data);
+      const errorMessage =
+        err.response?.data?.message || err.response?.data?.error || "";
 
-      // Check both 'message' and 'error' fields for flexibility
-      const errorMessage = 
-        err.response?.data?.message || 
-        err.response?.data?.error || 
-        "";
-
-      // First check for PENDING_APPROVAL (most specific case)
       if (errorMessage.includes("PENDING_APPROVAL")) {
         setError(
-          "Your vendor application is currently under review by an Admin. We will notify you once approved!",
+          "Your vendor application is under review. We'll notify you once approved.",
         );
       } else if (errorMessage.length > 0) {
-        // Use backend message if available
         setError(errorMessage);
       } else {
-        // Default fallback
         setError("Invalid email or password");
       }
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh]">
-      <div className="p-8 bg-white rounded-xl shadow-lg w-96 border border-gray-100">
-        <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">
-          Sign In
-        </h2>
+    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-2">
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-10">
+        <div className="mb-8 text-center">
+          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg">
+            <Sparkles size={28} />
+          </span>
+          <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Sign in to your {BRAND_NAME} account
+          </p>
+        </div>
 
         {error && (
-          <div className="mb-4 text-red-500 text-sm text-center bg-red-50 p-2 rounded">
+          <div className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
               Email
             </label>
             <input
               type="email"
-              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="input-field"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
               Password
             </label>
             <input
               type="password"
-              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="input-field"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
               required
             />
           </div>
-          <button
-            type="submit"
-            className="w-full bg-gray-900 text-white font-semibold py-3 rounded-lg hover:bg-gray-800 transition shadow-md mt-4"
-          >
-            Secure Login
+          <button type="submit" className="btn-primary w-full !py-3.5">
+            Sign in
           </button>
         </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Don't have an account?{" "}
+
+        <p className="mt-8 text-center text-sm text-slate-600">
+          Don&apos;t have an account?{" "}
           <Link
             to="/register"
-            className="text-blue-600 hover:underline font-semibold"
+            className="font-semibold text-indigo-600 hover:text-indigo-700"
           >
-            Sign up
+            Create one
           </Link>
         </p>
       </div>

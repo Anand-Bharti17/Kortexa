@@ -12,10 +12,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
         info = @Info(
-                title = "Kortexa E-Commerce API",
-                description = "Enterprise backend for the Kortexa shopping platform featuring Redis caching and Kafka event streaming.",
+                title = "Veluno E-Commerce API",
+                description = "Enterprise backend for the Veluno shopping platform featuring Redis caching and Kafka event streaming.",
                 version = "1.0",
-                contact = @Contact(name = "Kortexa Support", email = "support@kortexa.com")
+                contact = @Contact(name = "Veluno Support", email = "support@veluno.app")
         ),
         security = {
                 @SecurityRequirement(name = "bearerAuth")

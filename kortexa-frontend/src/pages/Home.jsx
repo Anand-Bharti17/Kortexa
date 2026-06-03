@@ -1,66 +1,59 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import api from "../services/api";
-import { ShoppingCart } from "lucide-react";
 import useCartStore from "../store/useCartStore";
 import useAuthStore from "../store/useAuthStore";
+import { useToast } from "../components/ui/Toast";
+import ProductCard from "../components/ui/ProductCard";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
 import RecentlyViewed from "../components/RecentlyViewed";
+import TrustPerks from "../components/TrustPerks";
+import { BRAND_NAME } from "../config/brand";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const addToCart = useCartStore((state) => state.addToCart);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await api.get("/products/store");
-        const payload = Array.isArray(response.data)
-          ? response.data
-          : response.data.content || [];
-        setProducts(payload);
-      } catch (error) {
-        console.error("Failed to fetch products", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProducts();
   }, []);
 
-  const handleSearch = async () => {
+  const fetchProducts = async (query = "") => {
     setLoading(true);
     try {
-      const response = await api.get(
-        `/products/store?search=${encodeURIComponent(searchTerm)}`,
-      );
+      const url = query
+        ? `/products/store?search=${encodeURIComponent(query)}`
+        : "/products/store";
+      const response = await api.get(url);
       const payload = Array.isArray(response.data)
         ? response.data
         : response.data.content || [];
       setProducts(payload);
     } catch (error) {
-      console.error("Failed to search products", error);
+      console.error("Failed to fetch products", error);
       setProducts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearchKeyDown = (event) => {
-    if (event.key === "Enter") {
-      handleSearch();
-    }
+  const handleSearch = (e) => {
+    e?.preventDefault();
+    fetchProducts(searchTerm.trim());
   };
 
   const handleAddToCart = async (e, product) => {
     e.stopPropagation();
     if (!isAuthenticated) {
-      alert("Please log in to add items to your cart!");
+      showToast("Please sign in to add items to your cart", "error");
+      navigate("/login");
       return;
     }
 
@@ -69,130 +62,107 @@ export default function Home() {
         productId: product.id,
         quantity: 1,
       });
-
       addToCart(product);
-      alert("Added to cart!");
+      showToast(`${product.name} added to cart`);
     } catch (error) {
-      console.error("Failed to add to database cart", error);
-      alert("Could not add item to cart. Please try again.");
+      console.error("Failed to add to cart", error);
+      showToast("Could not add item. Please try again.", "error");
     }
   };
 
-  const handleProductClick = (productId) => {
-    navigate(`/product/${productId}`);
-  };
-
-  if (loading)
-    return (
-      <div className="text-center mt-20 text-xl font-semibold text-gray-600 animate-pulse">
-        Loading Kortexa Catalog...
-      </div>
-    );
+  if (loading && products.length === 0) {
+    return <LoadingSpinner label="Loading catalog..." />;
+  }
 
   return (
-    <div className="py-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Featured Products
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Search and filter products across the store.
-          </p>
-        </div>
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-2xl border border-indigo-100 shadow-sm">
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-violet-500 to-transparent sm:via-violet-500/90 sm:to-white/95"
+          aria-hidden
+        />
+        <div className="relative flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5">
+          <div className="shrink-0 sm:pr-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-100">
+              {BRAND_NAME}
+            </p>
+            <h1 className="text-base font-bold text-white sm:text-lg">
+              Search the catalog
+            </h1>
+          </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Search products by name or description"
-            className="w-full sm:w-96 px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleSearch}
-            className="bg-blue-600 text-white px-5 py-3 rounded-xl hover:bg-blue-700 transition"
+          <form
+            onSubmit={handleSearch}
+            className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center"
           >
-            Search
-          </button>
-        </div>
-      </div>
-      {/* TERNARY OPERATOR STARTS HERE */}
-      {products.length === 0 && !loading ? (
-        <div className="text-center text-gray-500 mt-12">
-          No products found. Try another search term.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => handleProductClick(product.id)}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition group cursor-pointer"
-            >
-              <div className="h-48 overflow-hidden bg-gray-100">
-                <img
-                  src={product.imageUrl || "https://via.placeholder.com/300"}
-                  alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                />
-              </div>
-              <div className="p-4">
-                {/* Category Badge */}
-                {product.category && (
-                  <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded mb-2">
-                    {product.category}
-                  </span>
-                )}
-
-                {/* Product Name */}
-                <h3 className="font-bold text-lg text-gray-800 truncate group-hover:text-blue-600 transition">
-                  {product.name}
-                </h3>
-                
-                {/* Rating */}
-                {product.reviewCount > 0 && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex mr-1 text-sm">
-                      {[1, 2, 3, 4, 5].map((i) => {
-                        let fillPct = 0;
-                        if (product.averageRating >= i) fillPct = 100;
-                        else if (product.averageRating > i - 1) fillPct = (product.averageRating - (i - 1)) * 100;
-                        return (
-                          <div key={i} className="relative inline-block text-gray-200">
-                            ★
-                            <div className="absolute top-0 left-0 overflow-hidden text-yellow-400" style={{ width: `${fillPct}%` }}>
-                              ★
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <span className="text-xs font-bold text-gray-700 mr-1">{product.averageRating.toFixed(1)}</span>
-                    <span className="text-xs text-gray-500">({product.reviewCount})</span>
-                  </div>
-                )}
-
-                {/* Price */}
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="font-bold text-xl text-gray-900">
-                    ₹{parseFloat(product.price).toFixed(2)}
-                  </span>
-                  <button
-                    onClick={(e) => handleAddToCart(e, product)}
-                    className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition active:scale-95"
-                  >
-                    <ShoppingCart size={20} />
-                  </button>
-                </div>
-              </div>
+            <div className="relative min-w-0 flex-1">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                size={18}
+              />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search products..."
+                className="w-full rounded-xl border-0 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-md placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-white/80 sm:py-3"
+              />
             </div>
-          ))}
+            <button
+              type="submit"
+              className="shrink-0 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-50 sm:py-3"
+            >
+              Search
+            </button>
+          </form>
         </div>
-      )}
-      
-      {/* Recently Viewed Component added here */}
+      </section>
+
+      <section>
+        <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="section-title">Featured products</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {products.length} {products.length === 1 ? "item" : "items"} available
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <LoadingSpinner label="Searching..." />
+        ) : products.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+            <p className="text-lg font-semibold text-slate-700">No products found</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Try a different search term or browse the full catalog.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                fetchProducts("");
+              }}
+              className="btn-primary mt-6"
+            >
+              Show all products
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onClick={() => navigate(`/product/${product.id}`)}
+                onAddToCart={(e) => handleAddToCart(e, product)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <TrustPerks />
+
       <RecentlyViewed />
     </div>
   );
