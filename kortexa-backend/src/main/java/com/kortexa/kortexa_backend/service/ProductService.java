@@ -31,6 +31,7 @@ public class ProductService {
     private final UserRepository userRepository;
     private final ImageUploadService cloudinaryService;
     private final AiService geminiService;
+    private final DiscoveryService discoveryService;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
 
     private static final String RECENTLY_VIEWED_KEY_PREFIX = "recently_viewed:";
@@ -97,6 +98,7 @@ public class ProductService {
                 .stockQuantity(request.stockQuantity())
                 .category(request.category())
                 .imageUrl(uploadedImageUrl)    // <-- Using the Cloudinary URL!
+                .featured(Boolean.TRUE.equals(request.featured()))
                 .build();
 
         // 7. Save to Database
@@ -143,7 +145,13 @@ public class ProductService {
                 : null;
 
         // Pass the safely formatted string to the repository
-        return productRepository.searchAndFilterProducts(formattedSearch, category, minPrice, maxPrice, pageable);
+        return productRepository.searchAndFilterProducts(
+                formattedSearch, category, minPrice, maxPrice, null, pageable);
+    }
+
+    public Page<Product> browseFeaturedProducts(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return productRepository.searchAndFilterProducts(null, null, null, null, true, pageable);
     }
 
     public List<String> getStoreCategories() {
@@ -158,10 +166,12 @@ public class ProductService {
                     return new IllegalArgumentException("Product not found");
                 });
                 
+        discoveryService.recordProductView(id);
+
         if (userEmail != null && !userEmail.equals("anonymousUser")) {
             recordRecentlyViewed(id, userEmail);
         }
-        
+
         log.debug("Product retrieved: id={}, name='{}', vendor={}", product.getId(), product.getName(), product.getVendor().getEmail());
         return product;
     }
@@ -251,6 +261,9 @@ public class ProductService {
         product.setPrice(request.price());
         product.setStockQuantity(request.stockQuantity());
         product.setCategory(request.category());
+        if (request.featured() != null) {
+            product.setFeatured(request.featured());
+        }
 
         // 5. Update image if provided
         if (file != null && !file.isEmpty()) {

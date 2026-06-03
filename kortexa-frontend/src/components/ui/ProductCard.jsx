@@ -28,11 +28,18 @@ export default function ProductCard({
           className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
           loading="lazy"
         />
-        {product.category && (
-          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-indigo-700 shadow-sm backdrop-blur-sm">
-            {product.category}
-          </span>
-        )}
+        <div className="absolute left-3 top-3 flex flex-col gap-1.5">
+          {product.featured && (
+            <span className="rounded-full bg-amber-400 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-amber-950 shadow-sm">
+              Featured
+            </span>
+          )}
+          {product.category && (
+            <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-indigo-700 shadow-sm backdrop-blur-sm">
+              {product.category}
+            </span>
+          )}
+        </div>
         {onWishlistToggle && (
           <button
             type="button"

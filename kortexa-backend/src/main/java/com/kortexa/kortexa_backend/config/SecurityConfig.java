@@ -53,6 +53,9 @@ public class SecurityConfig {
                             .requestMatchers("/api/products/store", "/api/products/store/**").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/discovery/**").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/ai/search").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/ai/product/**").permitAll()
                             .requestMatchers("/api/payments/charge").denyAll();
 
                     if (exposeOpenApi) {
@@ -65,6 +68,8 @@ public class SecurityConfig {
                             .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
                             .requestMatchers("/api/wishlist/**").hasRole("CUSTOMER")
                             .requestMatchers("/api/orders/vendor/**").hasRole("VENDOR")
+                            .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").hasRole("VENDOR")
+                            .requestMatchers("/api/vendor/**").hasRole("VENDOR")
                             .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
                             .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
                             .requestMatchers("/api/products/**").hasRole("VENDOR")
@@ -93,7 +98,7 @@ public class SecurityConfig {
                 .toList();
         configuration.setAllowedOrigins(origins);
         // Allow these HTTP methods
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // Allow all headers (including Authorization for JWT)
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

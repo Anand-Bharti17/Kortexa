@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { UserPlus } from "lucide-react";
 import api from "../services/api";
 import { BRAND_NAME } from "../config/brand";
+import VelunoLogo from "../components/VelunoLogo";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -34,9 +34,7 @@ export default function Register() {
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-2">
       <div className="rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-10">
         <div className="mb-8 text-center">
-          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-purple-600 text-white shadow-lg">
-            <UserPlus size={28} />
-          </span>
+          <VelunoLogo size="lg" className="mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-900">Create account</h2>
           <p className="mt-1 text-sm text-slate-500">
             Join {BRAND_NAME} as a shopper or vendor

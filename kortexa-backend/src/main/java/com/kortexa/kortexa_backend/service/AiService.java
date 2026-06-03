@@ -1,5 +1,6 @@
 package com.kortexa.kortexa_backend.service;
 
+import com.kortexa.kortexa_backend.dto.AiSearchResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
@@ -45,5 +46,81 @@ public class AiService {
                 .call()
                 .content();
         return result;
+    }
+
+    public AiSearchResponse interpretSearchQuery(String userQuery) {
+        try {
+            String prompt = """
+                    You help shoppers search an e-commerce catalog.
+                    Given the user message, reply with EXACTLY three lines:
+                    SEARCH: comma-separated keywords for product name/description search (max 6 words total)
+                    CATEGORY: one category from [Electronics, Clothing & Apparel, Home & Garden, Sports & Outdoors, Books & Media, Beauty & Personal Care, Toys & Games, Food & Beverages, Health & Wellness, Other] or NONE
+                    MESSAGE: one short friendly sentence about what you understood
+                    
+                    User message: %s
+                    """.formatted(userQuery.trim());
+
+            String raw = chatClient.prompt().user(prompt).call().content();
+            return parseSearchResponse(raw, userQuery);
+        } catch (Exception e) {
+            log.warn("AI search interpretation failed, using fallback: {}", e.getMessage());
+            return new AiSearchResponse(userQuery.trim(), null,
+                    "Showing results for your search.");
+        }
+    }
+
+    public String answerProductQuestion(String productName, String description, String category,
+                                        java.util.List<String> reviewSnippets, String question) {
+        String reviewsBlock = reviewSnippets.isEmpty()
+                ? "No reviews yet."
+                : String.join("\n- ", reviewSnippets);
+
+        String prompt = """
+                You are a helpful Veluno shopping assistant. Answer in 2-4 concise sentences.
+                Do not invent specs not implied by the data. If unsure, say so.
+                
+                Product: %s
+                Category: %s
+                Description: %s
+                Review snippets:
+                - %s
+                
+                Shopper question: %s
+                """.formatted(
+                productName,
+                category != null ? category : "General",
+                description != null ? description : "No description",
+                reviewsBlock,
+                question);
+
+        try {
+            return chatClient.prompt().user(prompt).call().content();
+        } catch (Exception e) {
+            log.error("AI product chat failed", e);
+            return "I could not generate an answer right now. Please try again in a moment.";
+        }
+    }
+
+    private AiSearchResponse parseSearchResponse(String raw, String fallbackQuery) {
+        String search = fallbackQuery;
+        String category = null;
+        String message = "Here are products matching your request.";
+
+        if (raw != null) {
+            for (String line : raw.split("\n")) {
+                String trimmed = line.trim();
+                if (trimmed.toUpperCase().startsWith("SEARCH:")) {
+                    search = trimmed.substring(7).trim();
+                } else if (trimmed.toUpperCase().startsWith("CATEGORY:")) {
+                    String cat = trimmed.substring(9).trim();
+                    if (!cat.equalsIgnoreCase("NONE") && !cat.isBlank()) {
+                        category = cat;
+                    }
+                } else if (trimmed.toUpperCase().startsWith("MESSAGE:")) {
+                    message = trimmed.substring(8).trim();
+                }
+            }
+        }
+        return new AiSearchResponse(search, category, message);
     }
 }

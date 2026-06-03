@@ -1,5 +1,7 @@
 package com.kortexa.kortexa_backend.service;
 
+import com.kortexa.kortexa_backend.dto.OrderStatusUpdateRequest;
+import com.kortexa.kortexa_backend.dto.VendorOrderSummary;
 import com.kortexa.kortexa_backend.dto.VendorSalesStats;
 import com.kortexa.kortexa_backend.model.*;
 import com.kortexa.kortexa_backend.repository.*;
@@ -11,7 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -303,5 +308,81 @@ public class OrderService {
                 .totalItemsSold(totalItemsSold)
                 .itemizedPerformance(new ArrayList<>(performanceMap.values()))
                 .build();
+    }
+
+    public List<VendorOrderSummary> getVendorFulfillmentOrders(String vendorEmail) {
+        String email = vendorEmail.trim().toLowerCase();
+        List<OrderItem> vendorItems = orderItemRepository.findByVendorEmailIgnoreCase(email);
+
+        Map<Long, VendorOrderSummary> byOrder = new LinkedHashMap<>();
+
+        for (OrderItem item : vendorItems) {
+            Order order = item.getOrder();
+            if (order == null || order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.PENDING) {
+                continue;
+            }
+
+            BigDecimal lineTotal = item.getPriceAtPurchase().multiply(BigDecimal.valueOf(item.getQuantity()));
+            VendorOrderSummary.VendorOrderLine line = new VendorOrderSummary.VendorOrderLine(
+                    item.getId(),
+                    item.getProduct() != null ? item.getProduct().getName() : "Product",
+                    item.getQuantity(),
+                    lineTotal);
+
+            byOrder.compute(order.getId(), (id, existing) -> {
+                if (existing == null) {
+                    return new VendorOrderSummary(
+                            order.getId(),
+                            order.getStatus(),
+                            order.getOrderDate(),
+                            order.getCustomer().getEmail(),
+                            lineTotal,
+                            new ArrayList<>(List.of(line)));
+                }
+                List<VendorOrderSummary.VendorOrderLine> lines = new ArrayList<>(existing.lines());
+                lines.add(line);
+                return new VendorOrderSummary(
+                        existing.orderId(),
+                        existing.status(),
+                        existing.orderDate(),
+                        existing.customerEmail(),
+                        existing.vendorSubtotal().add(lineTotal),
+                        lines);
+            });
+        }
+
+        return byOrder.values().stream()
+                .sorted(Comparator.comparing(VendorOrderSummary::orderDate).reversed())
+                .toList();
+    }
+
+    @Transactional
+    public Order updateOrderStatus(Long orderId, String vendorEmail, OrderStatusUpdateRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        String email = vendorEmail.trim().toLowerCase();
+        boolean ownsOrder = order.getItems().stream()
+                .anyMatch(item -> item.getProduct() != null
+                        && item.getProduct().getVendor() != null
+                        && email.equalsIgnoreCase(item.getProduct().getVendor().getEmail()));
+
+        if (!ownsOrder) {
+            throw new SecurityException("You cannot update this order");
+        }
+
+        OrderStatus current = order.getStatus();
+        OrderStatus next = request.status();
+
+        boolean validTransition = (current == OrderStatus.PAID && next == OrderStatus.SHIPPED)
+                || (current == OrderStatus.SHIPPED && next == OrderStatus.DELIVERED);
+
+        if (!validTransition) {
+            throw new IllegalArgumentException(
+                    "Invalid status transition from " + current + " to " + next);
+        }
+
+        order.setStatus(next);
+        return orderRepository.save(order);
     }
 }

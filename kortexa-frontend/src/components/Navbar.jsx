@@ -13,33 +13,15 @@ import {
   BarChart3,
   Menu,
   X,
-  Sparkles,
   Home,
   Heart,
+  DollarSign,
 } from "lucide-react";
 import useAuthStore from "../store/useAuthStore";
 import useCartStore from "../store/useCartStore";
 import useWishlistStore from "../store/useWishlistStore";
 import { BRAND_NAME, BRAND_VENDOR, BRAND_ADMIN } from "../config/brand";
-
-const ROLE_STYLES = {
-  guest: {
-    badge: "from-indigo-600 to-violet-600",
-    accent: "text-indigo-600",
-  },
-  CUSTOMER: {
-    badge: "from-indigo-600 to-violet-600",
-    accent: "text-indigo-600",
-  },
-  VENDOR: {
-    badge: "from-blue-600 to-cyan-600",
-    accent: "text-blue-600",
-  },
-  ADMIN: {
-    badge: "from-emerald-600 to-teal-600",
-    accent: "text-emerald-600",
-  },
-};
+import VelunoLogo from "./VelunoLogo";
 
 function NavLink({ to, icon: Icon, children, onClick, badge }) {
   return (
@@ -64,9 +46,6 @@ export default function Navbar() {
   const totalItems = useCartStore((state) => state.getTotalItems());
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const roleKey = isAuthenticated ? userRole : "guest";
-  const styles = ROLE_STYLES[roleKey] || ROLE_STYLES.guest;
 
   const handleLogout = () => {
     setMobileOpen(false);
@@ -94,13 +73,15 @@ export default function Navbar() {
   let navLinks = [];
   if (!isAuthenticated) {
     navLinks = [
-      { to: "/", icon: Home, label: "Shop" },
+      { to: "/", icon: Home, label: "Home" },
+      { to: "/shop", icon: Package, label: "Shop" },
       { to: "/login", icon: User, label: "Sign in" },
       { to: "/register", icon: User, label: "Create account", highlight: true },
     ];
   } else if (userRole === "CUSTOMER") {
     navLinks = [
-      { to: "/", icon: Package, label: "Products" },
+      { to: "/", icon: Home, label: "Home" },
+      { to: "/shop", icon: Package, label: "Shop" },
       { to: "/wishlist", icon: Heart, label: "Wishlist" },
       { to: "/cart", icon: ShoppingCart, label: "Cart", badge: totalItems },
       { to: "/orders", icon: History, label: "Orders" },
@@ -111,6 +92,8 @@ export default function Navbar() {
       { to: "/vendor", icon: List, label: "My products" },
       { to: "/vendor?tab=add", icon: PlusSquare, label: "Add product" },
       { to: "/vendor?tab=stats", icon: BarChart3, label: "Stats" },
+      { to: "/vendor?tab=fulfillment", icon: History, label: "Fulfillment" },
+      { to: "/vendor?tab=wallet", icon: DollarSign, label: "Wallet" },
       { to: "/profile", icon: User, label: "Profile" },
     ];
   } else if (userRole === "ADMIN") {
@@ -129,17 +112,7 @@ export default function Navbar() {
             onClick={closeMobile}
             className="flex min-w-0 items-center gap-2.5"
           >
-            <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${styles.badge} text-white shadow-lg shadow-indigo-500/20`}
-            >
-              {userRole === "VENDOR" ? (
-                <Store size={20} />
-              ) : userRole === "ADMIN" ? (
-                <Shield size={20} />
-              ) : (
-                <Sparkles size={20} />
-              )}
-            </span>
+            <VelunoLogo size="md" />
             <span className="truncate text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
               {brandLabel}
             </span>

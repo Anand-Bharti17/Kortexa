@@ -11,9 +11,11 @@ import {
 import api from "../services/api";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import { formatPrice } from "../utils/currency";
+import OrderStatusTimeline from "../components/OrderStatusTimeline";
 
 const statusStyles = {
   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  SHIPPED: "bg-indigo-50 text-indigo-700 border-indigo-200",
   DELIVERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
   PENDING: "bg-amber-50 text-amber-800 border-amber-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
@@ -112,6 +114,12 @@ export default function OrderHistory() {
 
               {isExpanded && (
                 <div className="border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
+                  <div className="mb-5 rounded-xl bg-white p-4 shadow-sm">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Delivery progress
+                    </p>
+                    <OrderStatusTimeline status={order.status} />
+                  </div>
                   {order.items?.length > 0 ? (
                     <div className="space-y-4">
                       {order.items.map((item) => (

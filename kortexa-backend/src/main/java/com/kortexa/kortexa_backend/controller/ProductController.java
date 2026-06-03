@@ -100,6 +100,13 @@ public class ProductController {
         return ResponseEntity.ok(productService.getStoreCategories());
     }
 
+    @GetMapping("/store/featured")
+    public ResponseEntity<Page<Product>> browseFeatured(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(productService.browseFeaturedProducts(page, size));
+    }
+
     @GetMapping("/store")
     public ResponseEntity<Page<Product>> browseStore(
             @RequestParam(required = false) String search,

@@ -54,6 +54,10 @@ public class Product implements Serializable{
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean featured = false;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Sparkles } from "lucide-react";
 import api from "../services/api";
 import useAuthStore from "../store/useAuthStore";
 import { BRAND_NAME } from "../config/brand";
+import VelunoLogo from "../components/VelunoLogo";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -58,9 +58,7 @@ export default function Login() {
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-2">
       <div className="rounded-3xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-10">
         <div className="mb-8 text-center">
-          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg">
-            <Sparkles size={28} />
-          </span>
+          <VelunoLogo size="lg" className="mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
           <p className="mt-1 text-sm text-slate-500">
             Sign in to your {BRAND_NAME} account

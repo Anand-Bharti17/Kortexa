@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { Sparkles } from "lucide-react";
 import { BRAND_NAME } from "../config/brand";
+import VelunoLogo from "./VelunoLogo";
 
 export default function Footer() {
   return (
@@ -12,9 +12,7 @@ export default function Footer() {
               to="/"
               className="inline-flex items-center gap-2 text-lg font-bold text-slate-900"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
-                <Sparkles size={18} />
-              </span>
+              <VelunoLogo size="sm" />
               {BRAND_NAME}
             </Link>
             <p className="mt-2 max-w-sm text-sm text-slate-500">

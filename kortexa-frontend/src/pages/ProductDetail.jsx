@@ -17,6 +17,7 @@ import StarRating from "../components/ui/StarRating";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import RecentlyViewed from "../components/RecentlyViewed";
 import FrequentlyBoughtTogether from "../components/FrequentlyBoughtTogether";
+import AiProductChat from "../components/AiProductChat";
 import { formatPrice } from "../utils/currency";
 
 export default function ProductDetail() {
@@ -328,6 +329,10 @@ export default function ProductDetail() {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="mb-8">
+        <AiProductChat productId={id} />
       </div>
 
       <section className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8">

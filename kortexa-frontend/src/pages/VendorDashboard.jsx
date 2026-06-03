@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { PackagePlus, UploadCloud, Edit2, BarChart3, DollarSign, TrendingUp, Package } from "lucide-react";
+import {
+  PackagePlus,
+  UploadCloud,
+  Edit2,
+  BarChart3,
+  DollarSign,
+  TrendingUp,
+  Package,
+  Truck,
+  Wallet,
+} from "lucide-react";
+import OrderStatusTimeline from "../components/OrderStatusTimeline";
 import api from "../services/api";
 import { formatPrice } from "../utils/currency";
 
@@ -12,6 +23,7 @@ export default function VendorDashboard() {
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
+  const [featured, setFeatured] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -26,12 +38,18 @@ export default function VendorDashboard() {
   const [editCategory, setEditCategory] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editStockQuantity, setEditStockQuantity] = useState("");
+  const [editFeatured, setEditFeatured] = useState(false);
   const [editImageFile, setEditImageFile] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
   
   // Stats state
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [fulfillmentOrders, setFulfillmentOrders] = useState([]);
+  const [fulfillmentLoading, setFulfillmentLoading] = useState(false);
+  const [settlement, setSettlement] = useState(null);
+  const [settlementLoading, setSettlementLoading] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(null);
 
 
   const categories = [
@@ -52,6 +70,10 @@ export default function VendorDashboard() {
     fetchMyProducts();
     if (tab === "stats") {
       fetchStats();
+    } else if (tab === "fulfillment") {
+      fetchFulfillment();
+    } else if (tab === "wallet") {
+      fetchSettlement();
     }
   }, [tab]);
 
@@ -64,6 +86,46 @@ export default function VendorDashboard() {
       console.error("Failed to fetch stats", error);
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const fetchFulfillment = async () => {
+    try {
+      setFulfillmentLoading(true);
+      const { data } = await api.get("/orders/vendor/fulfillment");
+      setFulfillmentOrders(data || []);
+    } catch (error) {
+      console.error("Failed to fetch fulfillment orders", error);
+    } finally {
+      setFulfillmentLoading(false);
+    }
+  };
+
+  const fetchSettlement = async () => {
+    try {
+      setSettlementLoading(true);
+      const { data } = await api.get("/vendor/settlement");
+      setSettlement(data);
+    } catch (error) {
+      console.error("Failed to fetch settlement", error);
+    } finally {
+      setSettlementLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (orderId, status) => {
+    setStatusUpdating(orderId);
+    try {
+      await api.patch(`/orders/${orderId}/status`, { status });
+      setMessage({ type: "success", text: `Order #${orderId} marked as ${status}` });
+      fetchFulfillment();
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Could not update order status",
+      });
+    } finally {
+      setStatusUpdating(null);
     }
   };
 
@@ -102,6 +164,7 @@ export default function VendorDashboard() {
       category: category,
       price: parseFloat(price),
       stockQuantity: parseInt(stockQuantity, 10),
+      featured,
     };
 
     formData.append(
@@ -129,6 +192,7 @@ export default function VendorDashboard() {
       setCategory("");
       setPrice("");
       setStockQuantity("");
+      setFeatured(false);
       setImageFile(null);
 
       // Refresh products list
@@ -149,6 +213,7 @@ export default function VendorDashboard() {
     setEditCategory(product.category);
     setEditPrice(product.price.toString());
     setEditStockQuantity(product.stockQuantity.toString());
+    setEditFeatured(Boolean(product.featured));
     setEditImageFile(null);
   };
 
@@ -163,6 +228,7 @@ export default function VendorDashboard() {
       price: parseFloat(editPrice),
       stockQuantity: parseInt(editStockQuantity, 10),
       description: editingProduct.description,
+      featured: editFeatured,
     };
 
     formData.append(
@@ -221,7 +287,143 @@ export default function VendorDashboard() {
 
       <div className={`grid grid-cols-1 lg:grid-cols-3 gap-8`}>
         {/* Conditionally show Add Product, Products List, or Stats based on tab */}
-        {tab === "stats" ? (
+        {tab === "wallet" ? (
+          <div className="lg:col-span-3 space-y-6">
+            {settlementLoading ? (
+              <div className="p-12 text-center text-gray-400">Loading wallet...</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="flex items-center space-x-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="rounded-lg bg-violet-100 p-4 text-violet-600">
+                      <Wallet size={24} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Wallet balance</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {formatPrice(settlement?.walletBalance || 0)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="rounded-lg bg-amber-100 p-4 text-amber-600">
+                      <DollarSign size={24} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Platform commission</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {settlement?.platformCommissionRate != null
+                          ? `${(Number(settlement.platformCommissionRate) * 100).toFixed(0)}%`
+                          : "10%"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                  <div className="border-b border-gray-100 p-6">
+                    <h2 className="text-xl font-bold text-gray-800">Recent ledger</h2>
+                  </div>
+                  {!settlement?.recentTransactions?.length ? (
+                    <p className="p-12 text-center text-gray-500">No transactions yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-600">
+                          <tr>
+                            <th className="px-6 py-3">Type</th>
+                            <th className="px-6 py-3">Description</th>
+                            <th className="px-6 py-3 text-right">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {settlement.recentTransactions.map((entry) => (
+                            <tr key={entry.id}>
+                              <td className="px-6 py-4 font-medium">{entry.transactionType}</td>
+                              <td className="px-6 py-4 text-gray-600">
+                                {entry.description || entry.referenceId || "—"}
+                              </td>
+                              <td className="px-6 py-4 text-right font-bold">
+                                {formatPrice(entry.amount)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ) : tab === "fulfillment" ? (
+          <div className="lg:col-span-3">
+            <div className="rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
+              <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                <Truck size={22} className="text-blue-600" />
+                Order fulfillment
+              </h2>
+              {fulfillmentLoading ? (
+                <div className="py-12 text-center text-gray-400">Loading orders...</div>
+              ) : fulfillmentOrders.length === 0 ? (
+                <div className="py-12 text-center text-gray-500">
+                  No paid orders to fulfill yet.
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {fulfillmentOrders.map((order) => (
+                    <div
+                      key={order.orderId}
+                      className="rounded-xl border border-gray-100 bg-gray-50 p-5"
+                    >
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-bold text-gray-900">Order #{order.orderId}</p>
+                          <p className="text-sm text-gray-500">{order.customerEmail}</p>
+                          <p className="text-sm font-semibold text-gray-800">
+                            Your items: {formatPrice(order.vendorSubtotal)}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800">
+                          {order.status}
+                        </span>
+                      </div>
+                      <OrderStatusTimeline status={order.status} />
+                      <ul className="mt-4 space-y-1 text-sm text-gray-700">
+                        {order.lines?.map((line) => (
+                          <li key={line.orderItemId}>
+                            {line.productName} × {line.quantity}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-4 flex gap-2">
+                        {order.status === "PAID" && (
+                          <button
+                            type="button"
+                            disabled={statusUpdating === order.orderId}
+                            onClick={() => handleStatusUpdate(order.orderId, "SHIPPED")}
+                            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                          >
+                            Mark shipped
+                          </button>
+                        )}
+                        {order.status === "SHIPPED" && (
+                          <button
+                            type="button"
+                            disabled={statusUpdating === order.orderId}
+                            onClick={() => handleStatusUpdate(order.orderId, "DELIVERED")}
+                            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            Mark delivered
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : tab === "stats" ? (
           <div className="lg:col-span-3 space-y-8">
             {/* Stats Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -393,6 +595,21 @@ export default function VendorDashboard() {
                   </div>
                 </div>
 
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={featured}
+                    onChange={(e) => setFeatured(e.target.checked)}
+                    className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-sm text-gray-800">
+                    <span className="font-semibold">Feature on homepage</span>
+                    <span className="mt-0.5 block text-gray-500">
+                      Show this product in the Featured section for shoppers
+                    </span>
+                  </span>
+                </label>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -457,6 +674,11 @@ export default function VendorDashboard() {
                         </div>
                         <p className="text-sm text-gray-500 uppercase tracking-tighter font-semibold">
                           {product.category}
+                          {product.featured && (
+                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 normal-case">
+                              Featured
+                            </span>
+                          )}
                         </p>
                         <div className="flex items-center justify-between mt-4 bg-white p-2 rounded-lg border border-gray-100">
                           <div>
@@ -548,6 +770,18 @@ export default function VendorDashboard() {
                   />
                 </div>
               </div>
+
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={editFeatured}
+                  onChange={(e) => setEditFeatured(e.target.checked)}
+                  className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-sm text-gray-800">
+                  <span className="font-semibold">Feature on homepage</span>
+                </span>
+              </label>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { ToastProvider } from "./components/ui/Toast";
 import Home from "./pages/Home";
+import Shop from "./pages/Shop";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import OrderSuccess from "./pages/OrderSuccess";
@@ -23,6 +24,7 @@ function App() {
           <main className="container mx-auto flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/shop" element={<Shop />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/cart" element={<Cart />} />

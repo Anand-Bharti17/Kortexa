@@ -1,6 +1,8 @@
 package com.kortexa.kortexa_backend.controller;
 
+import com.kortexa.kortexa_backend.dto.OrderStatusUpdateRequest;
 import com.kortexa.kortexa_backend.dto.RazorpayPaymentConfirmation;
+import com.kortexa.kortexa_backend.dto.VendorOrderSummary;
 import com.kortexa.kortexa_backend.dto.VendorSalesStats;
 import com.kortexa.kortexa_backend.model.Order;
 import com.kortexa.kortexa_backend.service.OrderService;
@@ -66,5 +68,19 @@ public class OrderController {
         log.info("Vendor stats request: vendor={}", principal.getName());
         VendorSalesStats stats = orderService.getVendorStats(principal.getName());
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/vendor/fulfillment")
+    public ResponseEntity<List<VendorOrderSummary>> getVendorFulfillment(Principal principal) {
+        return ResponseEntity.ok(orderService.getVendorFulfillmentOrders(principal.getName()));
+    }
+
+    @PatchMapping("/{orderId}/status")
+    public ResponseEntity<Order> updateOrderStatus(
+            @PathVariable Long orderId,
+            @Valid @RequestBody OrderStatusUpdateRequest request,
+            Principal principal) {
+        Order updated = orderService.updateOrderStatus(orderId, principal.getName(), request);
+        return ResponseEntity.ok(updated);
     }
 }

@@ -29,12 +29,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "(:search IS NULL OR LOWER(p.name) LIKE :search OR LOWER(p.description) LIKE :search) AND " +
             "(:category IS NULL OR p.category = :category) AND " +
             "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
-            "(:maxPrice IS NULL OR p.price <= :maxPrice)")
+            "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
+            "(:featuredOnly IS NULL OR p.featured = :featuredOnly)")
     Page<Product> searchAndFilterProducts(
             @Param("search") String search,
             @Param("category") String category,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice,
+            @Param("featuredOnly") Boolean featuredOnly,
             Pageable pageable);
 
     @Query("SELECT DISTINCT p.category FROM Product p WHERE p.category IS NOT NULL AND p.category <> '' ORDER BY p.category")

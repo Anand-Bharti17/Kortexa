@@ -22,5 +22,7 @@ public record ProductRequest(
 
         String category,
 
-        String imageUrl
+        String imageUrl,
+
+        Boolean featured
 ) {}
