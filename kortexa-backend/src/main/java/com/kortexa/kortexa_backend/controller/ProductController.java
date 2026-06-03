@@ -1,6 +1,7 @@
 package com.kortexa.kortexa_backend.controller;
 
 import com.kortexa.kortexa_backend.dto.ProductRequest;
+import com.kortexa.kortexa_backend.dto.ProductSuggestion;
 import com.kortexa.kortexa_backend.model.Product;
 import com.kortexa.kortexa_backend.service.AiService;
 import com.kortexa.kortexa_backend.service.ImageUploadService;
@@ -98,6 +99,16 @@ public class ProductController {
     @GetMapping("/store/categories")
     public ResponseEntity<List<String>> getStoreCategories() {
         return ResponseEntity.ok(productService.getStoreCategories());
+    }
+
+    @GetMapping("/store/suggest")
+    public ResponseEntity<List<ProductSuggestion>> suggestProducts(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "8") int limit) {
+        if (q == null || q.trim().length() < 2) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(productService.suggestProducts(q.trim(), limit));
     }
 
     @GetMapping("/store/featured")

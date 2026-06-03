@@ -53,7 +53,9 @@ public class AiService {
             String prompt = """
                     You help shoppers search an e-commerce catalog.
                     Given the user message, reply with EXACTLY three lines:
-                    SEARCH: comma-separated keywords for product name/description search (max 6 words total)
+                    SEARCH: individual words separated by spaces (NOT a sentence). Include product-type words and synonyms.
+                    Example: "kids driving toys" -> kids toy toys car vehicle driving
+                    Example: "wireless headphones" -> wireless headphones audio earphone
                     CATEGORY: one category from [Electronics, Clothing & Apparel, Home & Garden, Sports & Outdoors, Books & Media, Beauty & Personal Care, Toys & Games, Food & Beverages, Health & Wellness, Other] or NONE
                     MESSAGE: one short friendly sentence about what you understood
                     
@@ -64,7 +66,7 @@ public class AiService {
             return parseSearchResponse(raw, userQuery);
         } catch (Exception e) {
             log.warn("AI search interpretation failed, using fallback: {}", e.getMessage());
-            return new AiSearchResponse(userQuery.trim(), null,
+            return new AiSearchResponse(userQuery.trim(), inferCategoryFromQuery(userQuery),
                     "Showing results for your search.");
         }
     }
@@ -121,6 +123,21 @@ public class AiService {
                 }
             }
         }
-        return new AiSearchResponse(search, category, message);
+        return new AiSearchResponse(search, category != null ? category : inferCategoryFromQuery(fallbackQuery), message);
+    }
+
+    private String inferCategoryFromQuery(String query) {
+        if (query == null) return null;
+        String q = query.toLowerCase();
+        if (q.contains("toy") || q.contains("kids") || q.contains("children")) {
+            return "Toys & Games";
+        }
+        if (q.contains("beauty") || q.contains("makeup") || q.contains("skincare")) {
+            return "Beauty & Personal Care";
+        }
+        if (q.contains("game") || q.contains("gaming") || q.contains("pc") || q.contains("laptop")) {
+            return "Electronics";
+        }
+        return null;
     }
 }

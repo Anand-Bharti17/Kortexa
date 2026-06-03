@@ -1,6 +1,7 @@
 package com.kortexa.kortexa_backend.service;
 
 import com.kortexa.kortexa_backend.dto.ProductRequest;
+import com.kortexa.kortexa_backend.dto.ProductSuggestion;
 import com.kortexa.kortexa_backend.model.AccountStatus;
 import com.kortexa.kortexa_backend.model.Product;
 import com.kortexa.kortexa_backend.model.Role;
@@ -11,6 +12,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,8 +27,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
-
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -28,6 +38,7 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final EntityManager entityManager;
     private final UserRepository userRepository;
     private final ImageUploadService cloudinaryService;
     private final AiService geminiService;
@@ -139,14 +150,150 @@ public class ProductService {
         Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, safeSortField));
 
-        // Safely format the search string in Java to prevent PostgreSQL type confusion
-        String formattedSearch = (search != null && !search.trim().isEmpty())
-                ? "%" + search.toLowerCase() + "%"
-                : null;
+        List<String> tokens = tokenizeSearchTerms(search);
+        if (!tokens.isEmpty()) {
+            return searchByAnyToken(tokens, category, minPrice, maxPrice, null, pageable);
+        }
 
-        // Pass the safely formatted string to the repository
         return productRepository.searchAndFilterProducts(
-                formattedSearch, category, minPrice, maxPrice, null, pageable);
+                null, category, minPrice, maxPrice, null, pageable);
+    }
+
+    public List<ProductSuggestion> suggestProducts(String query, int limit) {
+        List<String> tokens = tokenizeSearchTerms(query);
+        if (tokens.isEmpty()) {
+            return List.of();
+        }
+        int safeLimit = Math.min(Math.max(limit, 1), 12);
+        Page<Product> page = searchByAnyToken(
+                tokens, null, null, null, null, PageRequest.of(0, safeLimit, Sort.by("name")));
+        return page.getContent().stream()
+                .map(p -> new ProductSuggestion(
+                        p.getId(), p.getName(), p.getCategory(), p.getPrice(), p.getImageUrl()))
+                .toList();
+    }
+
+    private List<String> tokenizeSearchTerms(String search) {
+        if (search == null || search.isBlank()) {
+            return List.of();
+        }
+        Set<String> tokens = new LinkedHashSet<>();
+        for (String part : search.toLowerCase().split("[,;]+")) {
+            for (String word : part.split("\\s+")) {
+                String trimmed = word.trim();
+                if (trimmed.length() >= 2) {
+                    tokens.add(trimmed);
+                }
+            }
+        }
+        return expandSearchTokens(new ArrayList<>(tokens));
+    }
+
+    private List<String> expandSearchTokens(List<String> tokens) {
+        Set<String> expanded = new LinkedHashSet<>(tokens);
+        for (String token : tokens) {
+            if (token.equals("toy") || token.equals("toys")) {
+                expanded.add("toy");
+                expanded.add("toys");
+            }
+            if (token.equals("kid") || token.equals("kids") || token.equals("children")) {
+                expanded.add("toy");
+                expanded.add("toys");
+            }
+            if (token.equals("car") || token.equals("cars") || token.equals("vehicle")) {
+                expanded.add("car");
+            }
+            if (token.equals("drive") || token.equals("driving")) {
+                expanded.add("car");
+                expanded.add("toy");
+            }
+        }
+        return new ArrayList<>(expanded);
+    }
+
+    private Page<Product> searchByAnyToken(
+            List<String> tokens,
+            String category,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            Boolean featuredOnly,
+            Pageable pageable) {
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Product> query = cb.createQuery(Product.class);
+        Root<Product> root = query.from(Product.class);
+        root.fetch("vendor");
+        query.distinct(true);
+
+        List<Predicate> andPredicates = new ArrayList<>();
+
+        List<Predicate> tokenOrs = new ArrayList<>();
+        for (String token : tokens) {
+            String pattern = "%" + token + "%";
+            tokenOrs.add(cb.or(
+                    cb.like(cb.lower(root.get("name")), pattern),
+                    cb.like(cb.lower(root.get("description")), pattern),
+                    cb.like(cb.lower(root.get("category")), pattern)));
+        }
+        andPredicates.add(cb.or(tokenOrs.toArray(Predicate[]::new)));
+
+        if (category != null && !category.isBlank()) {
+            andPredicates.add(cb.equal(root.get("category"), category));
+        }
+        if (minPrice != null) {
+            andPredicates.add(cb.greaterThanOrEqualTo(root.get("price"), minPrice));
+        }
+        if (maxPrice != null) {
+            andPredicates.add(cb.lessThanOrEqualTo(root.get("price"), maxPrice));
+        }
+        if (featuredOnly != null) {
+            andPredicates.add(cb.equal(root.get("featured"), featuredOnly));
+        }
+
+        query.where(andPredicates.toArray(Predicate[]::new));
+
+        pageable.getSort().forEach(order -> {
+            var path = root.get(order.getProperty());
+            query.orderBy(order.isAscending() ? cb.asc(path) : cb.desc(path));
+        });
+
+        TypedQuery<Product> typedQuery = entityManager.createQuery(query);
+        typedQuery.setFirstResult((int) pageable.getOffset());
+        typedQuery.setMaxResults(pageable.getPageSize());
+        List<Product> content = typedQuery.getResultList();
+
+        CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+        Root<Product> countRoot = countQuery.from(Product.class);
+        countQuery.select(cb.countDistinct(countRoot));
+
+        List<Predicate> countAnds = new ArrayList<>();
+        List<Predicate> countTokenOrs = new ArrayList<>();
+        for (String token : tokens) {
+            String pattern = "%" + token + "%";
+            countTokenOrs.add(cb.or(
+                    cb.like(cb.lower(countRoot.get("name")), pattern),
+                    cb.like(cb.lower(countRoot.get("description")), pattern),
+                    cb.like(cb.lower(countRoot.get("category")), pattern)));
+        }
+        countAnds.add(cb.or(countTokenOrs.toArray(Predicate[]::new)));
+        if (category != null && !category.isBlank()) {
+            countAnds.add(cb.equal(countRoot.get("category"), category));
+        }
+        if (minPrice != null) {
+            countAnds.add(cb.greaterThanOrEqualTo(countRoot.get("price"), minPrice));
+        }
+        if (maxPrice != null) {
+            countAnds.add(cb.lessThanOrEqualTo(countRoot.get("price"), maxPrice));
+        }
+        if (featuredOnly != null) {
+            countAnds.add(cb.equal(countRoot.get("featured"), featuredOnly));
+        }
+        countQuery.where(countAnds.toArray(Predicate[]::new));
+
+        long total = entityManager.createQuery(countQuery).getSingleResult();
+
+        return new PageImpl<>(content, pageable, total);
     }
 
     public Page<Product> browseFeaturedProducts(int page, int size) {

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import { useNavigate, Link } from "react-router-dom";
 
-import { Search, Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import api from "../services/api";
 
@@ -23,8 +23,7 @@ import RecentlyViewed from "../components/RecentlyViewed";
 import TrustPerks from "../components/TrustPerks";
 
 import ProductDiscoveryRow from "../components/ProductDiscoveryRow";
-
-import { BRAND_NAME } from "../config/brand";
+import SearchWithSuggestions from "../components/SearchWithSuggestions";
 
 
 
@@ -146,64 +145,61 @@ export default function Home() {
 
 
 
-  const fetchSearchResults = useCallback(
+  const fetchStoreResults = useCallback(async (search, searchCategory = "") => {
+    setSearchLoading(true);
+    setHasSearched(true);
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (searchCategory) params.set("category", searchCategory);
+      params.set("page", "0");
+      params.set("size", "48");
+      params.set("sortBy", "createdAt");
+      params.set("sortDir", "desc");
 
-    async (search = searchTerm, searchCategory = category) => {
+      const response = await api.get(`/products/store?${params.toString()}`);
+      const data = response.data;
+      const payload = Array.isArray(data) ? data : data.content || [];
+      setSearchResults(payload);
+      setSearchTotal(
+        Array.isArray(data) ? payload.length : data.totalElements ?? payload.length,
+      );
+    } catch (error) {
+      console.error("Failed to fetch search results", error);
+      setSearchResults([]);
+      setSearchTotal(0);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
 
-      setSearchLoading(true);
-
-      setHasSearched(true);
-
-      try {
-
-        const params = new URLSearchParams();
-
-        if (search.trim()) params.set("search", search.trim());
-
-        if (searchCategory) params.set("category", searchCategory);
-
-        params.set("page", "0");
-
-        params.set("size", "48");
-
-        params.set("sortBy", "createdAt");
-
-        params.set("sortDir", "desc");
-
-
-
-        const response = await api.get(`/products/store?${params.toString()}`);
-
-        const data = response.data;
-
-        const payload = Array.isArray(data) ? data : data.content || [];
-
-        setSearchResults(payload);
-
-        setSearchTotal(
-
-          Array.isArray(data) ? payload.length : data.totalElements ?? payload.length,
-
-        );
-
-      } catch (error) {
-
-        console.error("Failed to fetch search results", error);
-
-        setSearchResults([]);
-
-        setSearchTotal(0);
-
-      } finally {
-
-        setSearchLoading(false);
-
+  const runSearch = useCallback(
+    async (search, searchCategory = "", options = {}) => {
+      const { ai = false } = options;
+      if (ai && search.trim()) {
+        setAiSearching(true);
+        setAiHint("");
+        try {
+          const { data } = await api.post("/ai/search", { query: search.trim() });
+          const nextCategory = data.category || "";
+          const terms = data.searchTerms || search;
+          setSearchTerm(terms);
+          setCategory(nextCategory);
+          setAiHint(data.message || "");
+          await fetchStoreResults(terms, nextCategory);
+        } catch (error) {
+          console.error("AI search failed", error);
+          showToast("AI search unavailable — using regular search", "error");
+          await fetchStoreResults(search, "");
+        } finally {
+          setAiSearching(false);
+        }
+        return;
       }
-
+      if (!options.live) setAiHint("");
+      await fetchStoreResults(search, searchCategory);
     },
-
-    [searchTerm, category],
-
+    [fetchStoreResults, showToast],
   );
 
 
@@ -262,71 +258,14 @@ export default function Home() {
 
 
 
-  const handleSearch = async (e) => {
-
-    e?.preventDefault();
-
-    if (aiSearchMode && searchTerm.trim()) {
-
-      setAiSearching(true);
-
-      setAiHint("");
-
-      try {
-
-        const { data } = await api.post("/ai/search", { query: searchTerm.trim() });
-
-        const nextCategory = data.category || "";
-
-        setSearchTerm(data.searchTerms || searchTerm);
-
-        setCategory(nextCategory);
-
-        setAiHint(data.message || "");
-
-        await fetchSearchResults(data.searchTerms || searchTerm, nextCategory);
-
-      } catch (error) {
-
-        console.error("AI search failed", error);
-
-        showToast("AI search unavailable — using regular search", "error");
-
-        await fetchSearchResults(searchTerm);
-
-      } finally {
-
-        setAiSearching(false);
-
-      }
-
-      return;
-
-    }
-
-    setAiHint("");
-
-    fetchSearchResults(searchTerm);
-
-  };
-
-
-
-  const clearSearch = () => {
-
+  const clearSearch = useCallback(() => {
     setSearchTerm("");
-
     setCategory("");
-
     setAiHint("");
-
     setHasSearched(false);
-
     setSearchResults([]);
-
     setSearchTotal(0);
-
-  };
+  }, []);
 
 
 
@@ -404,191 +343,19 @@ export default function Home() {
 
     <div className="space-y-8">
 
-      <section
-
-        className={
-
-          aiSearchMode
-
-            ? "search-hero-ai-ring"
-
-            : "search-hero-surface overflow-hidden rounded-2xl border border-indigo-100 shadow-md shadow-indigo-200/40"
-
-        }
-
-      >
-
-        <div
-
-          className={`space-y-3 p-4 sm:p-5 ${
-
-            aiSearchMode ? "search-hero-inner search-hero-surface" : ""
-
-          }`}
-
-        >
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-
-            <div className="shrink-0">
-
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
-
-                {BRAND_NAME}
-
-              </p>
-
-              <h1 className="text-base font-bold text-slate-900 sm:text-lg">
-
-                {aiSearchMode ? "AI-powered search" : "Search the catalog"}
-
-              </h1>
-
-            </div>
-
-
-
-            <form
-
-              onSubmit={handleSearch}
-
-              className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center"
-
-            >
-
-              <div className="relative min-w-0 flex-1">
-
-                <Search
-
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-
-                  size={18}
-
-                />
-
-                <input
-
-                  type="search"
-
-                  value={searchTerm}
-
-                  onChange={(e) => setSearchTerm(e.target.value)}
-
-                  placeholder={
-
-                    aiSearchMode
-
-                      ? "e.g. cozy gifts for anime fans under $50"
-
-                      : "Search products..."
-
-                  }
-
-                  className="w-full rounded-xl border-0 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-md placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 sm:py-3"
-
-                />
-
-              </div>
-
-              <button
-
-                type="button"
-
-                onClick={() => {
-
-                  setAiSearchMode((v) => !v);
-
-                  if (aiSearchMode) setAiHint("");
-
-                }}
-
-                className={`shrink-0 rounded-xl px-3 py-2.5 shadow-sm transition sm:py-3 ${
-
-                  aiSearchMode
-
-                    ? "bg-violet-600 text-white ring-2 ring-violet-300/80 shadow-violet-300/40 hover:bg-violet-500"
-
-                    : "border border-indigo-200/80 bg-white/80 text-indigo-700 hover:bg-white"
-
-                }`}
-
-                title="Toggle AI-assisted search"
-
-                aria-pressed={aiSearchMode}
-
-              >
-
-                <Sparkles
-
-                  size={18}
-
-                  className={`mx-auto ${aiSearchMode ? "animate-pulse" : ""}`}
-
-                />
-
-              </button>
-
-              <button
-
-                type="submit"
-
-                disabled={aiSearching}
-
-                className={`shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold shadow-md transition disabled:opacity-70 sm:py-3 ${
-
-                  aiSearchMode
-
-                    ? "bg-gradient-to-r from-violet-400 to-fuchsia-500 text-white hover:from-violet-300 hover:to-fuchsia-400"
-
-                    : "bg-white text-indigo-800 hover:bg-indigo-50"
-
-                }`}
-
-              >
-
-                {aiSearching ? "Thinking..." : aiSearchMode ? "AI Search" : "Search"}
-
-              </button>
-
-            </form>
-
-          </div>
-
-
-
-          {aiSearchMode && (
-
-            <p className="rounded-lg border border-indigo-100 bg-white/70 px-3 py-2 text-xs leading-relaxed text-indigo-800 backdrop-blur-sm">
-
-              Describe what you want in plain language — AI will pick keywords and filters
-
-              for you.
-
-            </p>
-
-          )}
-
-          {aiHint && (
-
-            <p className="rounded-lg border border-violet-200 bg-white/85 px-3 py-2 text-sm leading-relaxed text-indigo-900 shadow-sm">
-
-              <Sparkles
-
-                size={14}
-
-                className="mr-1.5 inline-block align-text-bottom text-violet-600"
-
-              />
-
-              {aiHint}
-
-            </p>
-
-          )}
-
-        </div>
-
-      </section>
+      <SearchWithSuggestions
+        aiSearchMode={aiSearchMode}
+        setAiSearchMode={setAiSearchMode}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        category={category}
+        setCategory={setCategory}
+        aiHint={aiHint}
+        setAiHint={setAiHint}
+        aiSearching={aiSearching}
+        onSearchResults={runSearch}
+        onClearSearch={clearSearch}
+      />
 
 
 
