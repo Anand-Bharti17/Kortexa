@@ -1,52 +1,131 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import api from "../services/api";
 import useCartStore from "../store/useCartStore";
 import useAuthStore from "../store/useAuthStore";
+import useWishlistStore from "../store/useWishlistStore";
 import { useToast } from "../components/ui/Toast";
 import ProductCard from "../components/ui/ProductCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import RecentlyViewed from "../components/RecentlyViewed";
 import TrustPerks from "../components/TrustPerks";
+import ProductFilters from "../components/ProductFilters";
 import { BRAND_NAME } from "../config/brand";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [category, setCategory] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [sort, setSort] = useState("createdAt:desc");
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const addToCart = useCartStore((state) => state.addToCart);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { fetchWishlistIds, isWishlisted, toggleWishlist } = useWishlistStore();
+
+  const [sortBy, sortDir] = sort.split(":");
+
+  const hasActiveFilters =
+    Boolean(category || minPrice || maxPrice || sort !== "createdAt:desc");
+
+  const fetchProducts = useCallback(
+    async (search = searchTerm) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (search.trim()) params.set("search", search.trim());
+        if (category) params.set("category", category);
+        if (minPrice) params.set("minPrice", minPrice);
+        if (maxPrice) params.set("maxPrice", maxPrice);
+        params.set("page", "0");
+        params.set("size", "48");
+        params.set("sortBy", sortBy);
+        params.set("sortDir", sortDir);
+
+        const response = await api.get(`/products/store?${params.toString()}`);
+        const data = response.data;
+        const payload = Array.isArray(data) ? data : data.content || [];
+        setProducts(payload);
+        setTotalCount(
+          Array.isArray(data) ? payload.length : data.totalElements ?? payload.length,
+        );
+      } catch (error) {
+        console.error("Failed to fetch products", error);
+        setProducts([]);
+        setTotalCount(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [searchTerm, category, minPrice, maxPrice, sortBy, sortDir],
+  );
 
   useEffect(() => {
-    fetchProducts();
+    const loadCategories = async () => {
+      try {
+        const { data } = await api.get("/products/store/categories");
+        setCategories(data || []);
+      } catch (error) {
+        console.error("Failed to load categories", error);
+      }
+    };
+    loadCategories();
+    fetchProducts("");
   }, []);
 
-  const fetchProducts = async (query = "") => {
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWishlistIds();
+    }
+  }, [isAuthenticated, fetchWishlistIds]);
+
+  const handleSearch = (e) => {
+    e?.preventDefault();
+    fetchProducts(searchTerm);
+  };
+
+  const handleClearFilters = async () => {
+    setCategory("");
+    setMinPrice("");
+    setMaxPrice("");
+    setSort("createdAt:desc");
+    setSearchTerm("");
     setLoading(true);
     try {
-      const url = query
-        ? `/products/store?search=${encodeURIComponent(query)}`
-        : "/products/store";
-      const response = await api.get(url);
-      const payload = Array.isArray(response.data)
-        ? response.data
-        : response.data.content || [];
+      const response = await api.get(
+        "/products/store?page=0&size=48&sortBy=createdAt&sortDir=desc",
+      );
+      const data = response.data;
+      const payload = Array.isArray(data) ? data : data.content || [];
       setProducts(payload);
+      setTotalCount(
+        Array.isArray(data) ? payload.length : data.totalElements ?? payload.length,
+      );
     } catch (error) {
       console.error("Failed to fetch products", error);
       setProducts([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e) => {
-    e?.preventDefault();
-    fetchProducts(searchTerm.trim());
+  const handleWishlistToggle = async (e, productId) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      showToast("Sign in to save items to your wishlist", "error");
+      navigate("/login");
+      return;
+    }
+    const added = await toggleWishlist(productId);
+    showToast(added ? "Saved to wishlist" : "Removed from wishlist");
   };
 
   const handleAddToCart = async (e, product) => {
@@ -70,7 +149,7 @@ export default function Home() {
     }
   };
 
-  if (loading && products.length === 0) {
+  if (loading && products.length === 0 && totalCount === 0) {
     return <LoadingSpinner label="Loading catalog..." />;
   }
 
@@ -118,15 +197,30 @@ export default function Home() {
         </div>
       </section>
 
-      <section>
-        <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <section className="space-y-5">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="section-title">Featured products</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {products.length} {products.length === 1 ? "item" : "items"} available
+              {totalCount} {totalCount === 1 ? "item" : "items"} available
             </p>
           </div>
         </div>
+
+        <ProductFilters
+          categories={categories}
+          category={category}
+          setCategory={setCategory}
+          minPrice={minPrice}
+          setMinPrice={setMinPrice}
+          maxPrice={maxPrice}
+          setMaxPrice={setMaxPrice}
+          sort={sort}
+          setSort={setSort}
+          onApply={() => fetchProducts(searchTerm)}
+          onClear={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
 
         {loading ? (
           <LoadingSpinner label="Searching..." />
@@ -134,14 +228,11 @@ export default function Home() {
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
             <p className="text-lg font-semibold text-slate-700">No products found</p>
             <p className="mt-2 text-sm text-slate-500">
-              Try a different search term or browse the full catalog.
+              Try adjusting filters or a different search term.
             </p>
             <button
               type="button"
-              onClick={() => {
-                setSearchTerm("");
-                fetchProducts("");
-              }}
+              onClick={handleClearFilters}
               className="btn-primary mt-6"
             >
               Show all products
@@ -155,6 +246,12 @@ export default function Home() {
                 product={product}
                 onClick={() => navigate(`/product/${product.id}`)}
                 onAddToCart={(e) => handleAddToCart(e, product)}
+                onWishlistToggle={
+                  isAuthenticated
+                    ? (e) => handleWishlistToggle(e, product.id)
+                    : undefined
+                }
+                wishlisted={isWishlisted(product.id)}
               />
             ))}
           </div>

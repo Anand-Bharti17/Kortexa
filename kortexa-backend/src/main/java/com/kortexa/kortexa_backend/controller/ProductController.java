@@ -95,6 +95,11 @@ public class ProductController {
         return ResponseEntity.ok(productService.getMyProducts(authentication.getName()));
     }
 
+    @GetMapping("/store/categories")
+    public ResponseEntity<List<String>> getStoreCategories() {
+        return ResponseEntity.ok(productService.getStoreCategories());
+    }
+
     @GetMapping("/store")
     public ResponseEntity<Page<Product>> browseStore(
             @RequestParam(required = false) String search,
@@ -102,10 +107,12 @@ public class ProductController {
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy) {
+            @RequestParam(defaultValue = "48") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
 
-        Page<Product> products = productService.browsePublicStore(search, category, minPrice, maxPrice, page, size, sortBy);
+        Page<Product> products = productService.browsePublicStore(
+                search, category, minPrice, maxPrice, page, size, sortBy, sortDir);
         return ResponseEntity.ok(products);
     }
 

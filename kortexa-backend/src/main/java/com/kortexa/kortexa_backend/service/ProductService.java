@@ -125,11 +125,17 @@ public class ProductService {
         return products;
     }
 
-    public Page<Product> browsePublicStore(String search, String category, BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String sortBy) {
-        log.debug("Public store browse: search='{}', category='{}', minPrice={}, maxPrice={}, page={}, size={}, sortBy={}",
-                search, category, minPrice, maxPrice, page, size, sortBy);
+    public Page<Product> browsePublicStore(String search, String category, BigDecimal minPrice, BigDecimal maxPrice,
+            int page, int size, String sortBy, String sortDir) {
+        log.debug("Public store browse: search='{}', category='{}', minPrice={}, maxPrice={}, page={}, size={}, sortBy={}, sortDir={}",
+                search, category, minPrice, maxPrice, page, size, sortBy, sortDir);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).descending());
+        String safeSortField = switch (sortBy == null ? "" : sortBy) {
+            case "price", "name", "createdAt" -> sortBy;
+            default -> "id";
+        };
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, safeSortField));
 
         // Safely format the search string in Java to prevent PostgreSQL type confusion
         String formattedSearch = (search != null && !search.trim().isEmpty())
@@ -138,6 +144,10 @@ public class ProductService {
 
         // Pass the safely formatted string to the repository
         return productRepository.searchAndFilterProducts(formattedSearch, category, minPrice, maxPrice, pageable);
+    }
+
+    public List<String> getStoreCategories() {
+        return productRepository.findDistinctCategories();
     }
 
     public Product getProductById(Long id, String userEmail) {
