@@ -99,6 +99,7 @@ export default function Navbar() {
   } else if (userRole === "ADMIN") {
     navLinks = [
       { to: "/admin", icon: Shield, label: "Dashboard" },
+      { to: "/admin/orders", icon: Package, label: "Orders" },
       { to: "/profile", icon: User, label: "Profile" },
     ];
   }

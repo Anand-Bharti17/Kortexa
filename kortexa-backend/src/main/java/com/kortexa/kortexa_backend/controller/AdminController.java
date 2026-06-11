@@ -1,10 +1,12 @@
 package com.kortexa.kortexa_backend.controller;
 
 import com.kortexa.kortexa_backend.dto.ActivityEventResponse;
+import com.kortexa.kortexa_backend.dto.AdminOrderDetailDto;
 import com.kortexa.kortexa_backend.dto.CouponRequest;
 import com.kortexa.kortexa_backend.model.Coupon;
 import com.kortexa.kortexa_backend.model.User;
 import com.kortexa.kortexa_backend.service.ActivityService;
+import com.kortexa.kortexa_backend.service.AdminOrderService;
 import com.kortexa.kortexa_backend.service.AdminService;
 import com.kortexa.kortexa_backend.service.CouponService;
 import jakarta.validation.Valid;
@@ -24,6 +26,7 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminOrderService adminOrderService;
     private final ActivityService activityService;
     private final CouponService couponService;
 
@@ -75,6 +78,13 @@ public class AdminController {
             log.warn("Vendor reactivation request rejected: vendorId={}, reason={}", vendorId, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/orders")
+    public ResponseEntity<Page<AdminOrderDetailDto>> getAllOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(adminOrderService.getAllOrders(page, size));
     }
 
     @GetMapping("/activity")

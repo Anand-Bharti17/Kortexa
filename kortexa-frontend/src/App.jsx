@@ -11,6 +11,7 @@ import OrderHistory from "./pages/OrderHistory";
 import Cart from "./pages/Cart";
 import VendorDashboard from "./pages/VendorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminOrders from "./pages/AdminOrders";
 import ProductDetail from "./pages/ProductDetail";
 import Profile from "./pages/Profile";
 import Wishlist from "./pages/Wishlist";
@@ -35,6 +36,7 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/vendor" element={<VendorDashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
             </Routes>
           </main>
           <Footer />
