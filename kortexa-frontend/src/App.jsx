@@ -12,6 +12,7 @@ import Cart from "./pages/Cart";
 import VendorDashboard from "./pages/VendorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminOrders from "./pages/AdminOrders";
+import AdminOrderRequests from "./pages/AdminOrderRequests";
 import ProductDetail from "./pages/ProductDetail";
 import Profile from "./pages/Profile";
 import Wishlist from "./pages/Wishlist";
@@ -37,6 +38,7 @@ function App() {
               <Route path="/vendor" element={<VendorDashboard />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/order-requests" element={<AdminOrderRequests />} />
             </Routes>
           </main>
           <Footer />

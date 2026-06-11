@@ -12,6 +12,7 @@ import api from "../services/api";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import { formatPrice } from "../utils/currency";
 import OrderStatusTimeline from "../components/OrderStatusTimeline";
+import OrderRequestActions from "../components/OrderRequestActions";
 
 const statusStyles = {
   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -19,26 +20,38 @@ const statusStyles = {
   DELIVERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
   PENDING: "bg-amber-50 text-amber-800 border-amber-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
+  RETURNED: "bg-violet-50 text-violet-700 border-violet-200",
 };
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState(null);
 
+  const loadData = async () => {
+    try {
+      const [ordersRes, requestsRes] = await Promise.all([
+        api.get("/orders/history"),
+        api.get("/orders/requests"),
+      ]);
+      setOrders(ordersRes.data);
+      setRequests(requestsRes.data || []);
+    } catch (error) {
+      console.error("Failed to fetch order history", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchOrderHistory = async () => {
-      try {
-        const response = await api.get("/orders/history");
-        setOrders(response.data);
-      } catch (error) {
-        console.error("Failed to fetch order history", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrderHistory();
+    loadData();
   }, []);
+
+  const pendingForOrder = (orderId) =>
+    requests.find(
+      (r) => r.orderId === orderId && r.status === "PENDING",
+    );
 
   if (loading) {
     return <LoadingSpinner label="Loading orders..." />;
@@ -120,6 +133,12 @@ export default function OrderHistory() {
                     </p>
                     <OrderStatusTimeline status={order.status} />
                   </div>
+                  <OrderRequestActions
+                    orderId={order.id}
+                    orderStatus={order.status}
+                    pendingRequest={pendingForOrder(order.id)}
+                    onSubmitted={loadData}
+                  />
                   {order.items?.length > 0 ? (
                     <div className="space-y-4">
                       {order.items.map((item) => (

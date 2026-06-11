@@ -158,6 +158,14 @@ public class ProductService {
         Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, safeSortField));
 
+        if (search != null && !search.isBlank() && search.trim().length() >= 3) {
+            Page<Product> ftsResults = searchByFullText(
+                    search.trim(), category, minPrice, maxPrice, pageable);
+            if (!ftsResults.isEmpty()) {
+                return ftsResults;
+            }
+        }
+
         List<String> tokens = tokenizeSearchTerms(search);
         if (!tokens.isEmpty()) {
             return searchByAnyToken(tokens, category, minPrice, maxPrice, null, pageable);
@@ -217,6 +225,34 @@ public class ProductService {
             }
         }
         return new ArrayList<>(expanded);
+    }
+
+    private Page<Product> searchByFullText(
+            String searchText,
+            String category,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            Pageable pageable) {
+        try {
+            Page<Long> idPage = productRepository.fullTextSearchIds(searchText, pageable);
+            if (idPage.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            List<Product> products = productRepository.findAllWithVendorByIdIn(idPage.getContent());
+            var byId = products.stream()
+                    .collect(java.util.stream.Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
+            List<Product> ordered = idPage.getContent().stream()
+                    .map(byId::get)
+                    .filter(java.util.Objects::nonNull)
+                    .filter(p -> category == null || category.isBlank() || category.equals(p.getCategory()))
+                    .filter(p -> minPrice == null || p.getPrice().compareTo(minPrice) >= 0)
+                    .filter(p -> maxPrice == null || p.getPrice().compareTo(maxPrice) <= 0)
+                    .toList();
+            return new PageImpl<>(ordered, pageable, idPage.getTotalElements());
+        } catch (Exception e) {
+            log.warn("Full-text search failed, falling back to token search: {}", e.getMessage());
+            return Page.empty(pageable);
+        }
     }
 
     private Page<Product> searchByAnyToken(

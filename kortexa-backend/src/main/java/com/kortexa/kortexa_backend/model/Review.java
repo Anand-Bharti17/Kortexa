@@ -25,6 +25,13 @@ public class Review {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean flagged = false;
+
+    @Column(name = "moderation_note", length = 500)
+    private String moderationNote;
+
     // Link the review to the exact product being reviewed
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)

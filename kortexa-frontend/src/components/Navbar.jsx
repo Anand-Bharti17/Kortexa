@@ -16,6 +16,7 @@ import {
   Home,
   Heart,
   DollarSign,
+  RotateCcw,
 } from "lucide-react";
 import useAuthStore from "../store/useAuthStore";
 import useCartStore from "../store/useCartStore";
@@ -93,6 +94,7 @@ export default function Navbar() {
       { to: "/vendor?tab=add", icon: PlusSquare, label: "Add product" },
       { to: "/vendor?tab=stats", icon: BarChart3, label: "Stats" },
       { to: "/vendor?tab=fulfillment", icon: History, label: "Fulfillment" },
+      { to: "/vendor?tab=requests", icon: RotateCcw, label: "Requests" },
       { to: "/vendor?tab=wallet", icon: DollarSign, label: "Wallet" },
       { to: "/profile", icon: User, label: "Profile" },
     ];
@@ -100,6 +102,7 @@ export default function Navbar() {
     navLinks = [
       { to: "/admin", icon: Shield, label: "Dashboard" },
       { to: "/admin/orders", icon: Package, label: "Orders" },
+      { to: "/admin/order-requests", icon: RotateCcw, label: "Requests" },
       { to: "/profile", icon: User, label: "Profile" },
     ];
   }

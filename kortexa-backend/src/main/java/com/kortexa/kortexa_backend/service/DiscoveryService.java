@@ -1,6 +1,7 @@
 package com.kortexa.kortexa_backend.service;
 
 import com.kortexa.kortexa_backend.model.Product;
+import com.kortexa.kortexa_backend.repository.OrderRepository;
 import com.kortexa.kortexa_backend.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -23,6 +25,7 @@ public class DiscoveryService {
 
     private final StringRedisTemplate redisTemplate;
     private final ProductRepository productRepository;
+    private final OrderRepository orderRepository;
 
     public void recordProductView(Long productId) {
         if (productId == null) return;
@@ -56,11 +59,32 @@ public class DiscoveryService {
             String key = RECENTLY_VIEWED_PREFIX + userEmail;
             Set<String> recentIds = redisTemplate.opsForZSet().reverseRange(key, 0, 2);
             List<Long> recommendedIds = new ArrayList<>();
+            Set<Long> purchasedIds = new HashSet<>();
+
+            List<Long> recentPurchases = orderRepository.findRecentPurchasedProductIds(
+                    userEmail, PageRequest.of(0, 6));
+            for (Long productId : recentPurchases) {
+                purchasedIds.add(productId);
+                getFrequentlyBoughtTogetherIds(productId).forEach(recommendedIds::add);
+                productRepository.findById(productId).ifPresent(p -> {
+                    if (p.getCategory() != null) {
+                        productRepository
+                                .findByCategoryAndPriceLessThanEqualAndStockQuantityGreaterThan(
+                                        p.getCategory(), p.getPrice(), 0, PageRequest.of(0, 2))
+                                .stream()
+                                .map(Product::getId)
+                                .filter(id -> !purchasedIds.contains(id))
+                                .forEach(recommendedIds::add);
+                    }
+                });
+            }
 
             if (recentIds != null && !recentIds.isEmpty()) {
                 String latestId = recentIds.iterator().next();
                 getFrequentlyBoughtTogetherIds(Long.parseLong(latestId)).forEach(recommendedIds::add);
             }
+
+            recommendedIds.removeIf(purchasedIds::contains);
 
             if (recommendedIds.size() < limit) {
                 Set<String> trending = redisTemplate.opsForZSet().reverseRange(TRENDING_KEY, 0, limit - 1);

@@ -10,8 +10,10 @@ import {
   Package,
   Truck,
   Wallet,
+  RotateCcw,
 } from "lucide-react";
 import OrderStatusTimeline from "../components/OrderStatusTimeline";
+import OrderRequestResolvePanel from "../components/OrderRequestResolvePanel";
 import api from "../services/api";
 import { formatPrice } from "../utils/currency";
 
@@ -50,6 +52,8 @@ export default function VendorDashboard() {
   const [settlement, setSettlement] = useState(null);
   const [settlementLoading, setSettlementLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(null);
+  const [orderRequests, setOrderRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
 
   const categories = [
@@ -74,8 +78,22 @@ export default function VendorDashboard() {
       fetchFulfillment();
     } else if (tab === "wallet") {
       fetchSettlement();
+    } else if (tab === "requests") {
+      fetchOrderRequests();
     }
   }, [tab]);
+
+  const fetchOrderRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      const { data } = await api.get("/orders/vendor/requests");
+      setOrderRequests(data || []);
+    } catch (error) {
+      console.error("Failed to fetch order requests", error);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -354,6 +372,47 @@ export default function VendorDashboard() {
                 </div>
               </>
             )}
+          </div>
+        ) : tab === "requests" ? (
+          <div className="lg:col-span-3">
+            <div className="rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
+              <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                <RotateCcw size={22} className="text-violet-600" />
+                Cancel & return requests
+              </h2>
+              {requestsLoading ? (
+                <div className="py-12 text-center text-gray-400">Loading requests...</div>
+              ) : orderRequests.length === 0 ? (
+                <div className="py-12 text-center text-gray-500">
+                  No pending requests for your products.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orderRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="rounded-xl border border-gray-100 bg-gray-50 p-5"
+                    >
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="font-bold text-gray-900">
+                          {req.requestType} · Order #{req.orderId}
+                        </span>
+                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                          {req.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Customer: {req.customerEmail}
+                      </p>
+                      <OrderRequestResolvePanel
+                        request={req}
+                        onResolved={fetchOrderRequests}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         ) : tab === "fulfillment" ? (
           <div className="lg:col-span-3">

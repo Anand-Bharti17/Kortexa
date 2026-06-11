@@ -5,6 +5,7 @@ import useCartStore from "../store/useCartStore";
 import api from "../services/api";
 import { BRAND_NAME } from "../config/brand";
 import { formatPrice } from "../utils/currency";
+import AiCartAssistant from "../components/AiCartAssistant";
 
 export default function Cart() {
   const { cartItems, removeFromCart, getTotalPrice, clearCart } = useCartStore();
@@ -271,6 +272,7 @@ export default function Cart() {
         </div>
 
         <div className="h-fit space-y-4 lg:sticky lg:top-24">
+          <AiCartAssistant />
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Order summary</h2>
             <div className="mt-4 flex justify-between text-sm text-slate-600">

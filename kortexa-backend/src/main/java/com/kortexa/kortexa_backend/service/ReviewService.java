@@ -60,8 +60,18 @@ public class ReviewService {
             log.info("Creating new review");
         }
 
+        var moderation = aiService.moderateReview(request.getComment(), request.getRating());
+        review.setFlagged(moderation.flagged());
+        review.setModerationNote(moderation.note());
+
         Review saved = reviewRepository.save(review);
-        log.info("Review saved: reviewId={}, productId={}, customer={}", saved.getId(), productId, customerEmail);
+        log.info("Review saved: reviewId={}, productId={}, customer={}, flagged={}",
+                saved.getId(), productId, customerEmail, saved.getFlagged());
+
+        if (Boolean.TRUE.equals(saved.getFlagged())) {
+            throw new IllegalArgumentException(
+                    "Your review could not be published. Please revise your comment and try again.");
+        }
 
         activityService.log(
                 com.kortexa.kortexa_backend.model.ActivityType.REVIEW_POSTED,
@@ -74,7 +84,7 @@ public class ReviewService {
 
     public List<Review> getProductReviews(Long productId) {
         log.debug("Fetching reviews for productId={}", productId);
-        return reviewRepository.findByProductIdOrderByCreatedAtDesc(productId);
+        return reviewRepository.findByProductIdAndFlaggedFalseOrderByCreatedAtDesc(productId);
     }
 
     public Double getProductAverageRating(Long productId) {

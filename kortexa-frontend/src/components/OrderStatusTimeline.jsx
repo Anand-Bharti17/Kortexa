@@ -9,12 +9,14 @@ const STEPS = [
 const rank = { PAID: 0, SHIPPED: 1, DELIVERED: 2 };
 
 export default function OrderStatusTimeline({ status }) {
-  if (status === "CANCELLED" || status === "PENDING") {
+  if (status === "CANCELLED" || status === "PENDING" || status === "RETURNED") {
     return (
       <p className="text-sm text-slate-500">
         {status === "PENDING"
           ? "Awaiting payment confirmation."
-          : "This order was cancelled."}
+          : status === "RETURNED"
+            ? "This order was returned."
+            : "This order was cancelled."}
       </p>
     );
   }

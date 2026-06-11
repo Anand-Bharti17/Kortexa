@@ -41,4 +41,30 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT DISTINCT p.category FROM Product p WHERE p.category IS NOT NULL AND p.category <> '' ORDER BY p.category")
     List<String> findDistinctCategories();
+
+    @Query(value = """
+            SELECT p.id FROM products p
+            WHERE to_tsvector('english',
+                    coalesce(p.name, '') || ' ' || coalesce(p.description, '') || ' ' || coalesce(p.category, ''))
+                  @@ plainto_tsquery('english', :searchText)
+            ORDER BY ts_rank(
+                to_tsvector('english',
+                    coalesce(p.name, '') || ' ' || coalesce(p.description, '') || ' ' || coalesce(p.category, '')),
+                plainto_tsquery('english', :searchText)
+            ) DESC
+            """,
+            countQuery = """
+            SELECT count(*) FROM products p
+            WHERE to_tsvector('english',
+                    coalesce(p.name, '') || ' ' || coalesce(p.description, '') || ' ' || coalesce(p.category, ''))
+                  @@ plainto_tsquery('english', :searchText)
+            """,
+            nativeQuery = true)
+    Page<Long> fullTextSearchIds(@Param("searchText") String searchText, Pageable pageable);
+
+    @Query("SELECT p FROM Product p JOIN FETCH p.vendor WHERE p.id IN :ids")
+    List<Product> findAllWithVendorByIdIn(@Param("ids") List<Long> ids);
+
+    List<Product> findByCategoryAndPriceLessThanEqualAndStockQuantityGreaterThan(
+            String category, BigDecimal maxPrice, int minStock, Pageable pageable);
 }

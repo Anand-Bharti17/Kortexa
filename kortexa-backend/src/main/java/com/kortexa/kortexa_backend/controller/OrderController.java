@@ -1,10 +1,14 @@
 package com.kortexa.kortexa_backend.controller;
 
+import com.kortexa.kortexa_backend.dto.OrderRequestResolveDto;
+import com.kortexa.kortexa_backend.dto.OrderRequestResponseDto;
+import com.kortexa.kortexa_backend.dto.OrderRequestSubmitDto;
 import com.kortexa.kortexa_backend.dto.OrderStatusUpdateRequest;
 import com.kortexa.kortexa_backend.dto.RazorpayPaymentConfirmation;
 import com.kortexa.kortexa_backend.dto.VendorOrderSummary;
 import com.kortexa.kortexa_backend.dto.VendorSalesStats;
 import com.kortexa.kortexa_backend.model.Order;
+import com.kortexa.kortexa_backend.service.OrderRequestService;
 import com.kortexa.kortexa_backend.service.OrderService;
 import com.kortexa.kortexa_backend.service.RazorpayGatewayService;
 import jakarta.validation.Valid;
@@ -23,6 +27,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderRequestService orderRequestService;
     private final RazorpayGatewayService razorpayGatewayService;
 
     // 1. Convert the current Cart into a final Order
@@ -82,5 +87,42 @@ public class OrderController {
             Principal principal) {
         Order updated = orderService.updateOrderStatus(orderId, principal.getName(), request);
         return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{orderId}/requests/cancel")
+    public ResponseEntity<OrderRequestResponseDto> requestCancellation(
+            @PathVariable Long orderId,
+            @Valid @RequestBody OrderRequestSubmitDto body,
+            Principal principal) {
+        return ResponseEntity.ok(
+                orderRequestService.submitCancelRequest(orderId, principal.getName(), body.getReason()));
+    }
+
+    @PostMapping("/{orderId}/requests/return")
+    public ResponseEntity<OrderRequestResponseDto> requestReturn(
+            @PathVariable Long orderId,
+            @Valid @RequestBody OrderRequestSubmitDto body,
+            Principal principal) {
+        return ResponseEntity.ok(
+                orderRequestService.submitReturnRequest(orderId, principal.getName(), body.getReason()));
+    }
+
+    @GetMapping("/requests")
+    public ResponseEntity<List<OrderRequestResponseDto>> getMyRequests(Principal principal) {
+        return ResponseEntity.ok(orderRequestService.getCustomerRequests(principal.getName()));
+    }
+
+    @GetMapping("/vendor/requests")
+    public ResponseEntity<List<OrderRequestResponseDto>> getVendorRequests(Principal principal) {
+        return ResponseEntity.ok(orderRequestService.getVendorPendingRequests(principal.getName()));
+    }
+
+    @PatchMapping("/requests/{requestId}/resolve")
+    public ResponseEntity<OrderRequestResponseDto> resolveRequestAsVendor(
+            @PathVariable Long requestId,
+            @Valid @RequestBody OrderRequestResolveDto body,
+            Principal principal) {
+        return ResponseEntity.ok(
+                orderRequestService.resolveByVendor(requestId, principal.getName(), body));
     }
 }

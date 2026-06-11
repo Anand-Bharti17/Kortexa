@@ -3,11 +3,14 @@ package com.kortexa.kortexa_backend.controller;
 import com.kortexa.kortexa_backend.dto.ActivityEventResponse;
 import com.kortexa.kortexa_backend.dto.AdminOrderDetailDto;
 import com.kortexa.kortexa_backend.dto.CouponRequest;
+import com.kortexa.kortexa_backend.dto.OrderRequestResolveDto;
+import com.kortexa.kortexa_backend.dto.OrderRequestResponseDto;
 import com.kortexa.kortexa_backend.model.Coupon;
 import com.kortexa.kortexa_backend.model.User;
 import com.kortexa.kortexa_backend.service.ActivityService;
 import com.kortexa.kortexa_backend.service.AdminOrderService;
 import com.kortexa.kortexa_backend.service.AdminService;
+import com.kortexa.kortexa_backend.service.OrderRequestService;
 import com.kortexa.kortexa_backend.service.CouponService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -27,6 +30,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final AdminOrderService adminOrderService;
+    private final OrderRequestService orderRequestService;
     private final ActivityService activityService;
     private final CouponService couponService;
 
@@ -85,6 +89,23 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(adminOrderService.getAllOrders(page, size));
+    }
+
+    @GetMapping("/order-requests")
+    public ResponseEntity<Page<OrderRequestResponseDto>> getOrderRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(orderRequestService.getAllRequests(page, size, status));
+    }
+
+    @PatchMapping("/order-requests/{requestId}/resolve")
+    public ResponseEntity<OrderRequestResponseDto> resolveOrderRequest(
+            @PathVariable Long requestId,
+            @Valid @RequestBody OrderRequestResolveDto body,
+            java.security.Principal principal) {
+        return ResponseEntity.ok(
+                orderRequestService.resolveByAdmin(requestId, principal.getName(), body));
     }
 
     @GetMapping("/activity")
