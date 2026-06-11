@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import api from "../services/api";
-import { CheckCircle, XCircle, Loader, AlertCircle } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Loader,
+  AlertCircle,
+  Activity,
+  RefreshCw,
+} from "lucide-react";
 import useAuthStore from "../store/useAuthStore";
 
 export default function AdminDashboard() {
@@ -12,7 +19,25 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState({});
   const [activeTab, setActiveTab] = useState("pending");
+  const [activity, setActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
   const user = useAuthStore((state) => state.user);
+
+  const activityTypeStyles = {
+    USER_REGISTERED: "bg-blue-100 text-blue-800",
+    USER_LOGIN: "bg-slate-100 text-slate-700",
+    ORDER_PLACED: "bg-amber-100 text-amber-800",
+    ORDER_PAID: "bg-emerald-100 text-emerald-800",
+    ORDER_STATUS_CHANGED: "bg-violet-100 text-violet-800",
+    PRODUCT_CREATED: "bg-indigo-100 text-indigo-800",
+    REVIEW_POSTED: "bg-pink-100 text-pink-800",
+    VENDOR_APPROVED: "bg-green-100 text-green-800",
+    VENDOR_SUSPENDED: "bg-red-100 text-red-800",
+    VENDOR_REACTIVATED: "bg-cyan-100 text-cyan-800",
+    COUPON_APPLIED: "bg-orange-100 text-orange-800",
+    ADDRESS_SAVED: "bg-teal-100 text-teal-800",
+    COUPON_CREATED: "bg-purple-100 text-purple-800",
+  };
 
   // Redirect if not admin
   useEffect(() => {
@@ -24,7 +49,22 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchAdminData();
+    fetchActivity();
   }, []);
+
+  const fetchActivity = async () => {
+    try {
+      setActivityLoading(true);
+      const { data } = await api.get("/admin/activity", {
+        params: { page: 0, size: 30 },
+      });
+      setActivity(data.content || []);
+    } catch (err) {
+      console.error("Failed to fetch activity", err);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
 
   const fetchAdminData = async () => {
     try {
@@ -66,6 +106,7 @@ export default function AdminDashboard() {
         active: prev.active + 1,
       }));
       alert("Vendor approved successfully!");
+      fetchActivity();
     } catch (err) {
       console.error("Failed to approve vendor", err);
       alert(
@@ -98,6 +139,7 @@ export default function AdminDashboard() {
         suspended: (prev.suspended || 0) + 1,
       }));
       alert("Vendor suspended successfully!");
+      fetchActivity();
     } catch (err) {
       console.error("Failed to suspend vendor", err);
       alert(
@@ -130,6 +172,7 @@ export default function AdminDashboard() {
         active: prev.active + 1,
       }));
       alert("Vendor reactivated successfully!");
+      fetchActivity();
     } catch (err) {
       console.error("Failed to reactivate vendor", err);
       alert(
@@ -165,6 +208,61 @@ export default function AdminDashboard() {
           {error}
         </div>
       )}
+
+      {/* Recent Activity */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Activity size={22} className="text-indigo-600" />
+            <h2 className="text-xl font-bold text-gray-900">Recent activity</h2>
+          </div>
+          <button
+            type="button"
+            onClick={fetchActivity}
+            disabled={activityLoading}
+            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={activityLoading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
+
+        {activityLoading && activity.length === 0 ? (
+          <p className="text-center text-gray-500 py-8 animate-pulse">
+            Loading activity...
+          </p>
+        ) : activity.length === 0 ? (
+          <p className="text-center text-gray-500 py-8">
+            No activity recorded yet. Events will appear here as users interact with the platform.
+          </p>
+        ) : (
+          <div className="max-h-96 overflow-y-auto space-y-2">
+            {activity.map((event) => (
+              <div
+                key={event.id}
+                className="flex items-start gap-3 rounded-lg border border-gray-100 px-4 py-3 hover:bg-gray-50 transition"
+              >
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    activityTypeStyles[event.eventType] || "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {event.eventType?.replace(/_/g, " ")}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-gray-900">{event.message}</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {event.actorEmail || "System"}
+                    {event.actorRole ? ` · ${event.actorRole}` : ""}
+                    {" · "}
+                    {new Date(event.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

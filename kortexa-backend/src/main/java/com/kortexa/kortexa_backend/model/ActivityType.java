@@ -1,0 +1,17 @@
+package com.kortexa.kortexa_backend.model;
+
+public enum ActivityType {
+    USER_REGISTERED,
+    USER_LOGIN,
+    ORDER_PLACED,
+    ORDER_PAID,
+    ORDER_STATUS_CHANGED,
+    PRODUCT_CREATED,
+    REVIEW_POSTED,
+    VENDOR_APPROVED,
+    VENDOR_SUSPENDED,
+    VENDOR_REACTIVATED,
+    COUPON_APPLIED,
+    ADDRESS_SAVED,
+    COUPON_CREATED
+}

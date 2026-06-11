@@ -1,6 +1,8 @@
 package com.kortexa.kortexa_backend.controller;
 
+import com.kortexa.kortexa_backend.dto.ApplyCouponRequest;
 import com.kortexa.kortexa_backend.dto.CartItemRequest;
+import com.kortexa.kortexa_backend.dto.CartSummaryResponse;
 import com.kortexa.kortexa_backend.model.Cart;
 import com.kortexa.kortexa_backend.service.CartService;
 import jakarta.validation.Valid;
@@ -10,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -18,6 +21,11 @@ import java.security.Principal;
 public class CartController {
 
     private final CartService cartService;
+
+    @GetMapping("/summary")
+    public ResponseEntity<CartSummaryResponse> getCartSummary(Principal principal) {
+        return ResponseEntity.ok(cartService.getCartSummary(principal.getName()));
+    }
 
     // 1. View the Cart
     @GetMapping
@@ -46,5 +54,32 @@ public class CartController {
         log.debug("Remove from cart request: user={}, productId={}", principal.getName(), productId);
         Cart updatedCart = cartService.removeItemFromCart(principal.getName(), productId);
         return ResponseEntity.ok(updatedCart);
+    }
+
+    @PostMapping("/coupon")
+    public ResponseEntity<?> applyCoupon(
+            @Valid @RequestBody ApplyCouponRequest request,
+            Principal principal) {
+        try {
+            return ResponseEntity.ok(cartService.applyCoupon(principal.getName(), request.getCode()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/coupon")
+    public ResponseEntity<CartSummaryResponse> removeCoupon(Principal principal) {
+        return ResponseEntity.ok(cartService.removeCoupon(principal.getName()));
+    }
+
+    @PutMapping("/shipping-address/{addressId}")
+    public ResponseEntity<CartSummaryResponse> selectShippingAddress(
+            @PathVariable Long addressId,
+            Principal principal) {
+        try {
+            return ResponseEntity.ok(cartService.selectShippingAddress(principal.getName(), addressId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

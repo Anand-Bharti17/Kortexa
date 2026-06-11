@@ -25,6 +25,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService; // Inject this
     private final AuthenticationManager authenticationManager; // Inject this
+    private final ActivityService activityService;
 
     public Map<String, String> register(RegisterRequest request) {
         log.info("Registration attempt for email: {}, role: {}", request.email(), request.role());
@@ -55,6 +56,12 @@ public class AuthService {
 
         userRepository.save(user);
         log.info("User registered successfully: email={}, role={}, status={}", user.getEmail(), user.getRole(), user.getStatus());
+
+        activityService.log(
+                com.kortexa.kortexa_backend.model.ActivityType.USER_REGISTERED,
+                user.getEmail(), user.getRole().name(),
+                "New " + user.getRole().name().toLowerCase() + " account registered",
+                "USER", user.getId());
 
         return Map.of("message", "User registered successfully", "email", user.getEmail());
     }
@@ -94,6 +101,12 @@ public class AuthService {
         // 5. Generate the token
         String jwtToken = jwtService.generateToken(userDetails);
         log.info("Login successful for email: {}, role: {}", user.getEmail(), user.getRole());
+
+        activityService.log(
+                com.kortexa.kortexa_backend.model.ActivityType.USER_LOGIN,
+                user.getEmail(), user.getRole().name(),
+                user.getRole().name() + " logged in",
+                "USER", user.getId());
 
         return Map.of(
                 "token", jwtToken,

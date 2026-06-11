@@ -17,6 +17,7 @@ import java.util.Map;
 public class AdminService {
 
     private final UserRepository userRepository;
+    private final ActivityService activityService;
 
     public List<User> getPendingVendors() {
         log.info("Admin request: fetching all vendors pending approval");
@@ -74,6 +75,12 @@ public class AdminService {
         userRepository.save(vendor);
         log.info("Vendor approved successfully: email={}, id={}", vendor.getEmail(), vendorId);
 
+        activityService.log(
+                com.kortexa.kortexa_backend.model.ActivityType.VENDOR_APPROVED,
+                "admin", "ADMIN",
+                "Approved vendor " + vendor.getEmail(),
+                "VENDOR", vendorId);
+
         return Map.of("message", "Vendor " + vendor.getEmail() + " has been approved successfully.");
     }
 
@@ -94,6 +101,12 @@ public class AdminService {
         userRepository.save(vendor);
         log.info("Vendor suspended successfully: email={}, id={}", vendor.getEmail(), vendorId);
 
+        activityService.log(
+                com.kortexa.kortexa_backend.model.ActivityType.VENDOR_SUSPENDED,
+                "admin", "ADMIN",
+                "Suspended vendor " + vendor.getEmail(),
+                "VENDOR", vendorId);
+
         return Map.of("message", "Vendor " + vendor.getEmail() + " has been suspended.");
     }
 
@@ -113,6 +126,12 @@ public class AdminService {
         vendor.setStatus(AccountStatus.ACTIVE);
         userRepository.save(vendor);
         log.info("Vendor reactivated successfully: email={}, id={}", vendor.getEmail(), vendorId);
+
+        activityService.log(
+                com.kortexa.kortexa_backend.model.ActivityType.VENDOR_REACTIVATED,
+                "admin", "ADMIN",
+                "Reactivated vendor " + vendor.getEmail(),
+                "VENDOR", vendorId);
 
         return Map.of("message", "Vendor " + vendor.getEmail() + " has been reactivated.");
     }

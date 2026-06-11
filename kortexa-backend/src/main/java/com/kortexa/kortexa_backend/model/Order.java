@@ -30,6 +30,17 @@ public class Order {
     @Column(nullable = false)
     private BigDecimal totalAmount;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_address_id")
+    private Address shippingAddress;
+
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    @Column(name = "discount_amount", nullable = false)
+    @Builder.Default
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;

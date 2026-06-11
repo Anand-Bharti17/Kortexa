@@ -34,6 +34,8 @@ public class OrderService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
     private final LedgerService ledgerService;
+    private final CartService cartService;
+    private final ActivityService activityService;
 
     @Transactional
     public Order checkoutCart(String customerEmail) {
@@ -63,6 +65,9 @@ public class OrderService {
                 .customer(customer)
                 .status(OrderStatus.PENDING)
                 .totalAmount(cart.getTotalPrice())
+                .shippingAddress(cart.getSelectedAddress())
+                .couponCode(cart.getCouponCode())
+                .discountAmount(cart.getDiscountAmount())
                 .items(new ArrayList<>())
                 .build();
 
@@ -108,10 +113,13 @@ public class OrderService {
         log.info("Order created successfully: orderId={}, itemCount={}, totalAmount={}, customer={}",
                 savedOrder.getId(), savedOrder.getItems().size(), savedOrder.getTotalAmount(), customerEmail);
 
-        cart.getItems().clear();
-        cart.setTotalPrice(BigDecimal.ZERO);
-        cartRepository.save(cart);
+        cartService.applyCouponUsageIfPresent(cart);
+        cartService.clearCartAfterCheckout(cart);
         log.debug("Cart cleared after checkout: email={}", customerEmail);
+
+        activityService.log(ActivityType.ORDER_PLACED, customerEmail, customer.getRole().name(),
+                "Placed order #" + savedOrder.getId() + " for ₹" + savedOrder.getTotalAmount(),
+                "ORDER", savedOrder.getId());
 
         // --- KAFKA PRODUCER: dispatch email notification event ---
         String kafkaPayload = customerEmail + "|" + savedOrder.getId() + "|" + savedOrder.getTotalAmount().toString();
@@ -167,10 +175,17 @@ public class OrderService {
         log.info("Cart found for payment checkout: email={}, itemCount={}, total={}",
                 customerEmail, cart.getItems().size(), cart.getTotalPrice());
 
+        if (cart.getSelectedAddress() == null) {
+            throw new IllegalArgumentException("Please select a shipping address before checkout");
+        }
+
         Order order = Order.builder()
                 .customer(customer)
                 .status(OrderStatus.PAID)
                 .totalAmount(cart.getTotalPrice())
+                .shippingAddress(cart.getSelectedAddress())
+                .couponCode(cart.getCouponCode())
+                .discountAmount(cart.getDiscountAmount())
                 .items(new ArrayList<>())
                 .build();
 
@@ -215,10 +230,13 @@ public class OrderService {
         log.info("Paid order created successfully: orderId={}, itemCount={}, totalAmount={}, customer={}, paymentReference={}",
                 savedOrder.getId(), savedOrder.getItems().size(), savedOrder.getTotalAmount(), customerEmail, paymentReference);
 
-        cart.getItems().clear();
-        cart.setTotalPrice(BigDecimal.ZERO);
-        cartRepository.save(cart);
+        cartService.applyCouponUsageIfPresent(cart);
+        cartService.clearCartAfterCheckout(cart);
         log.debug("Cart cleared after paid checkout: email={}", customerEmail);
+
+        activityService.log(ActivityType.ORDER_PAID, customerEmail, customer.getRole().name(),
+                "Paid order #" + savedOrder.getId() + " (₹" + savedOrder.getTotalAmount() + ")",
+                "ORDER", savedOrder.getId());
 
         String kafkaPayload = customerEmail + "|" + savedOrder.getId() + "|" + savedOrder.getTotalAmount().toString();
         log.info("[KAFKA PRODUCER] Sending paid order event to topic='order-emails': orderId={}, customer={}",
@@ -383,6 +401,16 @@ public class OrderService {
         }
 
         order.setStatus(next);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+
+        String customerEmail = order.getCustomer().getEmail();
+        activityService.log(ActivityType.ORDER_STATUS_CHANGED, vendorEmail, "VENDOR",
+                "Order #" + orderId + " updated to " + next,
+                "ORDER", orderId);
+
+        String statusPayload = customerEmail + "|" + orderId + "|" + next + "|" + order.getTotalAmount();
+        kafkaTemplate.send("order-status-emails", statusPayload);
+
+        return saved;
     }
 }

@@ -34,6 +34,17 @@ public class Cart {
     @Builder.Default
     private BigDecimal totalPrice = BigDecimal.ZERO;
 
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    @Column(name = "discount_amount", nullable = false)
+    @Builder.Default
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "selected_address_id")
+    private Address selectedAddress;
+
     // Helper method to add items and keep the relationship in sync
     public void addItem(CartItem item) {
         items.add(item);

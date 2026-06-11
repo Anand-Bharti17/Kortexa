@@ -1,11 +1,11 @@
 package com.kortexa.kortexa_backend.service;
 
 import com.kortexa.kortexa_backend.dto.CartItemRequest;
-import com.kortexa.kortexa_backend.model.Cart;
-import com.kortexa.kortexa_backend.model.CartItem;
-import com.kortexa.kortexa_backend.model.Product;
-import com.kortexa.kortexa_backend.model.User;
+import com.kortexa.kortexa_backend.dto.CartSummaryResponse;
+import com.kortexa.kortexa_backend.model.*;
+import com.kortexa.kortexa_backend.repository.AddressRepository;
 import com.kortexa.kortexa_backend.repository.CartRepository;
+import com.kortexa.kortexa_backend.repository.CouponRepository;
 import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -24,8 +24,11 @@ public class CartService {
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final CouponService couponService;
+    private final CouponRepository couponRepository;
+    private final AddressRepository addressRepository;
+    private final ActivityService activityService;
 
-    // 1. Get the user's cart (or create an empty one if it doesn't exist)
     public Cart getOrCreateCart(String email) {
         return cartRepository.findByUserEmail(email).orElseGet(() -> {
             log.info("No existing cart found for user: {}. Creating a new cart.", email);
@@ -38,7 +41,18 @@ public class CartService {
         });
     }
 
-    // 2. Add an item to the cart
+    public CartSummaryResponse getCartSummary(String email) {
+        Cart cart = getOrCreateCart(email);
+        BigDecimal subtotal = calculateSubtotal(cart);
+        return CartSummaryResponse.builder()
+                .subtotal(subtotal)
+                .discountAmount(cart.getDiscountAmount())
+                .total(cart.getTotalPrice())
+                .couponCode(cart.getCouponCode())
+                .selectedAddressId(cart.getSelectedAddress() != null ? cart.getSelectedAddress().getId() : null)
+                .build();
+    }
+
     @Transactional
     public Cart addItemToCart(String email, CartItemRequest request) {
         log.info("Adding item to cart: user={}, productId={}, quantity={}", email, request.getProductId(), request.getQuantity());
@@ -49,7 +63,6 @@ public class CartService {
                     return new RuntimeException("Product not found");
                 });
 
-        // Check if the product is already in the cart
         Optional<CartItem> existingItem = cart.getItems().stream()
                 .filter(item -> item.getProduct().getId().equals(product.getId()))
                 .findFirst();
@@ -61,14 +74,12 @@ public class CartService {
                 throw new IllegalArgumentException(
                         "Only " + product.getStockQuantity() + " units available for " + product.getName());
             }
-            log.debug("Product already in cart. Updating quantity: productId={}, oldQty={}, newQty={}", product.getId(), item.getQuantity(), newQty);
             item.setQuantity(newQty);
         } else {
             if (request.getQuantity() > product.getStockQuantity()) {
                 throw new IllegalArgumentException(
                         "Only " + product.getStockQuantity() + " units available for " + product.getName());
             }
-            log.debug("Adding new item to cart: productId={}, quantity={}", product.getId(), request.getQuantity());
             CartItem newItem = CartItem.builder()
                     .product(product)
                     .quantity(request.getQuantity())
@@ -82,28 +93,99 @@ public class CartService {
         return savedCart;
     }
 
-    // 3. Remove an item completely
     @Transactional
     public Cart removeItemFromCart(String email, Long productId) {
         log.info("Removing item from cart: user={}, productId={}", email, productId);
         Cart cart = getOrCreateCart(email);
-
-        boolean removed = cart.getItems().removeIf(item -> item.getProduct().getId().equals(productId));
-        if (removed) {
-            log.debug("Item removed from cart: user={}, productId={}", email, productId);
-        } else {
-            log.warn("Remove item requested but productId={} was not found in cart for user={}", productId, email);
-        }
-
+        cart.getItems().removeIf(item -> item.getProduct().getId().equals(productId));
         recalculateTotal(cart);
         return cartRepository.save(cart);
     }
 
-    // Helper method to keep the math accurate!
-    private void recalculateTotal(Cart cart) {
-        BigDecimal total = cart.getItems().stream()
+    @Transactional
+    public CartSummaryResponse applyCoupon(String email, String code) {
+        Cart cart = getOrCreateCart(email);
+        if (cart.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Add items to your cart before applying a coupon");
+        }
+
+        BigDecimal subtotal = calculateSubtotal(cart);
+        Coupon coupon = couponService.validateCoupon(code, subtotal);
+        BigDecimal discount = couponService.calculateDiscount(coupon, subtotal);
+
+        cart.setCouponCode(coupon.getCode());
+        cart.setDiscountAmount(discount);
+        cart.setTotalPrice(subtotal.subtract(discount).max(BigDecimal.ZERO));
+        cartRepository.save(cart);
+
+        User user = cart.getUser();
+        activityService.log(ActivityType.COUPON_APPLIED, email,
+                user != null ? user.getRole().name() : "CUSTOMER",
+                "Applied coupon " + coupon.getCode() + " (₹" + discount + " off)",
+                "COUPON", coupon.getId());
+
+        return getCartSummary(email);
+    }
+
+    @Transactional
+    public CartSummaryResponse removeCoupon(String email) {
+        Cart cart = getOrCreateCart(email);
+        cart.setCouponCode(null);
+        cart.setDiscountAmount(BigDecimal.ZERO);
+        recalculateTotal(cart);
+        cartRepository.save(cart);
+        return getCartSummary(email);
+    }
+
+    @Transactional
+    public CartSummaryResponse selectShippingAddress(String email, Long addressId) {
+        Cart cart = getOrCreateCart(email);
+        Address address = addressRepository.findByIdAndUser_Email(addressId, email)
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+        cart.setSelectedAddress(address);
+        cartRepository.save(cart);
+        return getCartSummary(email);
+    }
+
+    @Transactional
+    public void clearCartAfterCheckout(Cart cart) {
+        cart.getItems().clear();
+        cart.setTotalPrice(BigDecimal.ZERO);
+        cart.setCouponCode(null);
+        cart.setDiscountAmount(BigDecimal.ZERO);
+        cart.setSelectedAddress(null);
+        cartRepository.save(cart);
+    }
+
+    public void applyCouponUsageIfPresent(Cart cart) {
+        if (cart.getCouponCode() == null) {
+            return;
+        }
+        couponRepository.findByCodeIgnoreCase(cart.getCouponCode())
+                .ifPresent(couponService::incrementUsage);
+    }
+
+    private BigDecimal calculateSubtotal(Cart cart) {
+        return cart.getItems().stream()
                 .map(item -> item.getProduct().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        cart.setTotalPrice(total);
+    }
+
+    private void recalculateTotal(Cart cart) {
+        BigDecimal subtotal = calculateSubtotal(cart);
+        if (cart.getCouponCode() != null) {
+            try {
+                Coupon coupon = couponService.validateCoupon(cart.getCouponCode(), subtotal);
+                BigDecimal discount = couponService.calculateDiscount(coupon, subtotal);
+                cart.setDiscountAmount(discount);
+                cart.setTotalPrice(subtotal.subtract(discount).max(BigDecimal.ZERO));
+                return;
+            } catch (IllegalArgumentException ex) {
+                cart.setCouponCode(null);
+                cart.setDiscountAmount(BigDecimal.ZERO);
+            }
+        }
+        cart.setDiscountAmount(BigDecimal.ZERO);
+        cart.setTotalPrice(subtotal);
     }
 }

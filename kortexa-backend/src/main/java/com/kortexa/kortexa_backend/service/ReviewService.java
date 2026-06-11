@@ -22,6 +22,7 @@ public class ReviewService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final AiService aiService;
+    private final ActivityService activityService;
 
     @org.springframework.cache.annotation.CacheEvict(value = "review_summaries", key = "#productId")
     public Review addReview(Long productId, String customerEmail, ReviewRequest request) {
@@ -61,6 +62,13 @@ public class ReviewService {
 
         Review saved = reviewRepository.save(review);
         log.info("Review saved: reviewId={}, productId={}, customer={}", saved.getId(), productId, customerEmail);
+
+        activityService.log(
+                com.kortexa.kortexa_backend.model.ActivityType.REVIEW_POSTED,
+                customerEmail, customer.getRole().name(),
+                "Reviewed " + product.getName() + " (" + request.getRating() + " stars)",
+                "PRODUCT", productId);
+
         return saved;
     }
 

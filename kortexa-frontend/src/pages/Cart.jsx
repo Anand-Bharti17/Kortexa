@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowRight, MapPin, Tag } from "lucide-react";
 import useCartStore from "../store/useCartStore";
 import api from "../services/api";
 import { BRAND_NAME } from "../config/brand";
@@ -10,7 +10,81 @@ export default function Cart() {
   const { cartItems, removeFromCart, getTotalPrice, clearCart } = useCartStore();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [error, setError] = useState("");
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [cartSummary, setCartSummary] = useState(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      loadCheckoutData();
+    }
+  }, [cartItems.length]);
+
+  const loadCheckoutData = async () => {
+    try {
+      const [addressRes, summaryRes] = await Promise.all([
+        api.get("/addresses").catch(() => ({ data: [] })),
+        api.get("/cart/summary"),
+      ]);
+      setAddresses(addressRes.data || []);
+      setCartSummary(summaryRes.data);
+      if (summaryRes.data?.selectedAddressId) {
+        setSelectedAddressId(summaryRes.data.selectedAddressId);
+      } else {
+        const defaultAddr = (addressRes.data || []).find(
+          (a) => a.default || a.isDefault,
+        );
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr.id);
+          await api.put(`/cart/shipping-address/${defaultAddr.id}`);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load checkout data", err);
+    }
+  };
+
+  const handleSelectAddress = async (addressId) => {
+    try {
+      const { data } = await api.put(`/cart/shipping-address/${addressId}`);
+      setSelectedAddressId(addressId);
+      setCartSummary(data);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to select address");
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setApplyingCoupon(true);
+    setError("");
+    try {
+      const { data } = await api.post("/cart/coupon", { code: couponCode.trim() });
+      setCartSummary(data);
+      setCouponCode("");
+    } catch (err) {
+      setError(err.response?.data?.error || "Invalid coupon code");
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = async () => {
+    try {
+      const { data } = await api.delete("/cart/coupon");
+      setCartSummary(data);
+    } catch (err) {
+      console.error("Failed to remove coupon", err);
+    }
+  };
+
+  const subtotal = cartSummary?.subtotal ?? getTotalPrice();
+  const discount = cartSummary?.discountAmount ?? 0;
+  const total = cartSummary?.total ?? getTotalPrice();
 
   const loadRazorpayScript = () =>
     new Promise((resolve, reject) => {
@@ -44,6 +118,7 @@ export default function Cart() {
         } catch (err) {
           setError(
             err.response?.data?.message ||
+              err.response?.data?.error ||
               err.message ||
               "Payment confirmation failed.",
           );
@@ -70,11 +145,15 @@ export default function Cart() {
       if (cartItems.length === 0) {
         throw new Error("Your cart is empty. Add items before checkout.");
       }
+      if (!selectedAddressId) {
+        throw new Error("Please select a shipping address before checkout.");
+      }
       const response = await api.get("/payments/razorpay/order");
       await openRazorpayWindow(response.data);
     } catch (err) {
       setError(
         err.response?.data?.message ||
+          err.response?.data?.error ||
           err.message ||
           "Checkout failed. Please try again.",
       );
@@ -143,48 +222,141 @@ export default function Cart() {
               </div>
             </div>
           ))}
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <h3 className="flex items-center gap-2 font-semibold text-slate-900">
+              <MapPin size={18} className="text-indigo-600" />
+              Shipping address
+            </h3>
+            {addresses.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-600">
+                No saved addresses.{" "}
+                <Link to="/profile" className="font-medium text-indigo-600 hover:text-indigo-700">
+                  Add one in your profile
+                </Link>{" "}
+                before checkout.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {addresses.map((addr) => (
+                  <label
+                    key={addr.id}
+                    className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
+                      selectedAddressId === addr.id
+                        ? "border-indigo-300 bg-indigo-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="shippingAddress"
+                      checked={selectedAddressId === addr.id}
+                      onChange={() => handleSelectAddress(addr.id)}
+                      className="mt-1"
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium text-slate-900">
+                        {addr.fullName}
+                        {addr.label ? ` · ${addr.label}` : ""}
+                      </p>
+                      <p className="text-slate-600">
+                        {addr.line1}, {addr.city} {addr.postalCode}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="h-fit rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm lg:sticky lg:top-24">
-          <h2 className="text-lg font-bold text-slate-900">Order summary</h2>
-          <div className="mt-4 flex justify-between text-sm text-slate-600">
-            <span>Subtotal ({cartItems.length} items)</span>
-            <span className="font-medium text-slate-900">
-              {formatPrice(getTotalPrice())}
-            </span>
-          </div>
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <div className="flex justify-between">
-              <span className="font-semibold text-slate-900">Total</span>
-              <span className="text-2xl font-bold text-slate-900">
-                {formatPrice(getTotalPrice())}
+        <div className="h-fit space-y-4 lg:sticky lg:top-24">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-900">Order summary</h2>
+            <div className="mt-4 flex justify-between text-sm text-slate-600">
+              <span>Subtotal ({cartItems.length} items)</span>
+              <span className="font-medium text-slate-900">
+                {formatPrice(subtotal)}
               </span>
             </div>
-          </div>
+            {discount > 0 && (
+              <div className="mt-2 flex justify-between text-sm text-emerald-600">
+                <span>Discount ({cartSummary?.couponCode})</span>
+                <span>-{formatPrice(discount)}</span>
+              </div>
+            )}
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <div className="flex justify-between">
+                <span className="font-semibold text-slate-900">Total</span>
+                <span className="text-2xl font-bold text-slate-900">
+                  {formatPrice(total)}
+                </span>
+              </div>
+            </div>
 
-          {error && (
-            <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-              {error}
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Tag size={16} className="text-indigo-600" />
+                Promo code
+              </label>
+              {cartSummary?.couponCode ? (
+                <div className="mt-2 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-sm">
+                  <span className="font-medium text-emerald-700">
+                    {cartSummary.couponCode} applied
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="text-emerald-700 underline hover:text-emerald-800"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. WELCOME10"
+                    className="input-field flex-1 !py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={applyingCoupon || !couponCode.trim()}
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {applyingCoupon ? "..." : "Apply"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={isCheckingOut || !selectedAddressId}
+              className="btn-primary mt-6 w-full !py-3.5"
+            >
+              {isCheckingOut ? "Processing..." : "Pay with Razorpay (INR)"}
+            </button>
+            <p className="mt-2 text-center text-xs text-slate-500">
+              Checkout amount matches cart total in Indian Rupees (₹).
             </p>
-          )}
-
-          <button
-            type="button"
-            onClick={handleCheckout}
-            disabled={isCheckingOut}
-            className="btn-primary mt-6 w-full !py-3.5"
-          >
-            {isCheckingOut ? "Processing..." : "Pay with Razorpay (INR)"}
-          </button>
-          <p className="mt-2 text-center text-xs text-slate-500">
-            Checkout amount matches cart total in Indian Rupees (₹).
-          </p>
-          <Link
-            to="/"
-            className="mt-3 block text-center text-sm font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            Continue shopping
-          </Link>
+            <Link
+              to="/"
+              className="mt-3 block text-center text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              Continue shopping
+            </Link>
+          </div>
         </div>
       </div>
     </div>

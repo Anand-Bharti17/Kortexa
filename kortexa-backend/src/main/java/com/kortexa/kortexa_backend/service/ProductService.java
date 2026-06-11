@@ -44,6 +44,7 @@ public class ProductService {
     private final AiService geminiService;
     private final DiscoveryService discoveryService;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    private final ActivityService activityService;
 
     private static final String RECENTLY_VIEWED_KEY_PREFIX = "recently_viewed:";
 
@@ -115,6 +116,13 @@ public class ProductService {
         // 7. Save to Database
         Product saved = productRepository.save(product);
         log.info("Product created successfully: productId={}, name='{}', vendor={}", saved.getId(), saved.getName(), userEmail);
+
+        activityService.log(
+                com.kortexa.kortexa_backend.model.ActivityType.PRODUCT_CREATED,
+                userEmail, Role.VENDOR.name(),
+                "Listed product \"" + saved.getName() + "\"",
+                "PRODUCT", saved.getId());
+
         return saved;
     }
 

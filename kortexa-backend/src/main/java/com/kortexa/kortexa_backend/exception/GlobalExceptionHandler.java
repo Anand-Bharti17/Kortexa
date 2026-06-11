@@ -12,6 +12,12 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("message", ex.getMessage() != null ? ex.getMessage() : "Invalid request"));
+    }
+
     // 1. Handle our custom PENDING_APPROVAL RuntimeException
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
