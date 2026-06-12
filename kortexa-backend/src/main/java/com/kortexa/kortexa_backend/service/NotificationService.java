@@ -2,7 +2,6 @@ package com.kortexa.kortexa_backend.service;
 
 import com.kortexa.kortexa_backend.dto.NotificationResponseDto;
 import com.kortexa.kortexa_backend.model.Notification;
-import com.kortexa.kortexa_backend.model.User;
 import com.kortexa.kortexa_backend.repository.NotificationRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import jakarta.transaction.Transactional;
