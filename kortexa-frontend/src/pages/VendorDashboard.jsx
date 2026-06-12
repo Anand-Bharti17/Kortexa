@@ -54,6 +54,10 @@ export default function VendorDashboard() {
   const [statusUpdating, setStatusUpdating] = useState(null);
   const [orderRequests, setOrderRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
+  const [payoutRequests, setPayoutRequests] = useState([]);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutNote, setPayoutNote] = useState("");
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
 
 
   const categories = [
@@ -122,12 +126,43 @@ export default function VendorDashboard() {
   const fetchSettlement = async () => {
     try {
       setSettlementLoading(true);
-      const { data } = await api.get("/vendor/settlement");
-      setSettlement(data);
+      const [settlementRes, payoutsRes] = await Promise.all([
+        api.get("/vendor/settlement"),
+        api.get("/vendor/payout-requests").catch(() => ({ data: [] })),
+      ]);
+      setSettlement(settlementRes.data);
+      setPayoutRequests(payoutsRes.data || []);
     } catch (error) {
       console.error("Failed to fetch settlement", error);
     } finally {
       setSettlementLoading(false);
+    }
+  };
+
+  const handlePayoutRequest = async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(payoutAmount);
+    if (!amount || amount < 1) {
+      setMessage({ type: "error", text: "Enter a valid withdrawal amount." });
+      return;
+    }
+    setPayoutSubmitting(true);
+    try {
+      await api.post("/vendor/payout-requests", {
+        amount,
+        paymentNote: payoutNote.trim() || null,
+      });
+      setMessage({ type: "success", text: "Payout request submitted for admin review." });
+      setPayoutAmount("");
+      setPayoutNote("");
+      fetchSettlement();
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.response?.data?.error || "Failed to submit payout request.",
+      });
+    } finally {
+      setPayoutSubmitting(false);
     }
   };
 
@@ -337,6 +372,68 @@ export default function VendorDashboard() {
                     </div>
                   </div>
                 </div>
+
+                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <h2 className="text-xl font-bold text-gray-800">Request withdrawal</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Submit a payout request. Admin will approve and transfer funds offline.
+                  </p>
+                  <form onSubmit={handlePayoutRequest} className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs font-semibold text-gray-700">Amount (₹)</span>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                        value={payoutAmount}
+                        onChange={(e) => setPayoutAmount(e.target.value)}
+                        placeholder="e.g. 5000"
+                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-semibold text-gray-700">
+                        UPI / bank note (optional)
+                      </span>
+                      <input
+                        type="text"
+                        value={payoutNote}
+                        onChange={(e) => setPayoutNote(e.target.value)}
+                        placeholder="UPI ID or account details"
+                        className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
+                      />
+                    </label>
+                    <div className="sm:col-span-2">
+                      <button
+                        type="submit"
+                        disabled={payoutSubmitting}
+                        className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                      >
+                        {payoutSubmitting ? "Submitting..." : "Request payout"}
+                      </button>
+                    </div>
+                  </form>
+                  {payoutRequests.length > 0 && (
+                    <div className="mt-6 border-t border-gray-100 pt-4">
+                      <h3 className="text-sm font-semibold text-gray-800">Your payout requests</h3>
+                      <ul className="mt-2 space-y-2">
+                        {payoutRequests.map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm"
+                          >
+                            <span className="font-medium">{formatPrice(p.amount)}</span>
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                              {p.status}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
                 <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                   <div className="border-b border-gray-100 p-6">
                     <h2 className="text-xl font-bold text-gray-800">Recent ledger</h2>

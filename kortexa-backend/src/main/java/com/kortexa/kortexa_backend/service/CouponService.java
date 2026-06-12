@@ -1,6 +1,7 @@
 package com.kortexa.kortexa_backend.service;
 
 import com.kortexa.kortexa_backend.dto.CouponRequest;
+import com.kortexa.kortexa_backend.dto.CouponUpdateRequest;
 import com.kortexa.kortexa_backend.model.Coupon;
 import com.kortexa.kortexa_backend.model.DiscountType;
 import com.kortexa.kortexa_backend.repository.CouponRepository;
@@ -89,5 +90,23 @@ public class CouponService {
                 "Created coupon " + saved.getCode(),
                 "COUPON", saved.getId());
         return saved;
+    }
+
+    @Transactional
+    public Coupon updateCoupon(Long couponId, CouponUpdateRequest request) {
+        Coupon coupon = couponRepository.findById(couponId)
+                .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+
+        if (request.getDescription() != null) {
+            coupon.setDescription(request.getDescription());
+        }
+        if (request.getActive() != null) {
+            coupon.setActive(request.getActive());
+        }
+        if (request.getMaxUses() != null) {
+            coupon.setMaxUses(request.getMaxUses());
+        }
+
+        return couponRepository.save(coupon);
     }
 }

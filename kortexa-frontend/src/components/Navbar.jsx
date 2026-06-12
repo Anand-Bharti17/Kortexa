@@ -17,6 +17,8 @@ import {
   Heart,
   DollarSign,
   RotateCcw,
+  Tag,
+  Wallet,
 } from "lucide-react";
 import useAuthStore from "../store/useAuthStore";
 import useCartStore from "../store/useCartStore";
@@ -101,8 +103,11 @@ export default function Navbar() {
   } else if (userRole === "ADMIN") {
     navLinks = [
       { to: "/admin", icon: Shield, label: "Dashboard" },
+      { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
       { to: "/admin/orders", icon: Package, label: "Orders" },
       { to: "/admin/order-requests", icon: RotateCcw, label: "Requests" },
+      { to: "/admin/coupons", icon: Tag, label: "Coupons" },
+      { to: "/admin/payouts", icon: Wallet, label: "Payouts" },
       { to: "/profile", icon: User, label: "Profile" },
     ];
   }

@@ -224,6 +224,8 @@ export default function Cart() {
             </div>
           ))}
 
+          <AiCartAssistant />
+
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <h3 className="flex items-center gap-2 font-semibold text-slate-900">
               <MapPin size={18} className="text-indigo-600" />
@@ -272,7 +274,6 @@ export default function Cart() {
         </div>
 
         <div className="h-fit space-y-4 lg:sticky lg:top-24">
-          <AiCartAssistant />
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900">Order summary</h2>
             <div className="mt-4 flex justify-between text-sm text-slate-600">

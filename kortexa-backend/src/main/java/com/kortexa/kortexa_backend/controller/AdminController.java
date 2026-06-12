@@ -2,16 +2,22 @@ package com.kortexa.kortexa_backend.controller;
 
 import com.kortexa.kortexa_backend.dto.ActivityEventResponse;
 import com.kortexa.kortexa_backend.dto.AdminOrderDetailDto;
+import com.kortexa.kortexa_backend.dto.AdminPlatformOverviewDto;
 import com.kortexa.kortexa_backend.dto.CouponRequest;
+import com.kortexa.kortexa_backend.dto.CouponUpdateRequest;
+import com.kortexa.kortexa_backend.dto.PayoutRequestResolveDto;
+import com.kortexa.kortexa_backend.dto.PayoutRequestResponseDto;
 import com.kortexa.kortexa_backend.dto.OrderRequestResolveDto;
 import com.kortexa.kortexa_backend.dto.OrderRequestResponseDto;
 import com.kortexa.kortexa_backend.model.Coupon;
 import com.kortexa.kortexa_backend.model.User;
 import com.kortexa.kortexa_backend.service.ActivityService;
+import com.kortexa.kortexa_backend.service.AdminAnalyticsService;
 import com.kortexa.kortexa_backend.service.AdminOrderService;
 import com.kortexa.kortexa_backend.service.AdminService;
-import com.kortexa.kortexa_backend.service.OrderRequestService;
 import com.kortexa.kortexa_backend.service.CouponService;
+import com.kortexa.kortexa_backend.service.OrderRequestService;
+import com.kortexa.kortexa_backend.service.PayoutRequestService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +39,8 @@ public class AdminController {
     private final OrderRequestService orderRequestService;
     private final ActivityService activityService;
     private final CouponService couponService;
+    private final AdminAnalyticsService adminAnalyticsService;
+    private final PayoutRequestService payoutRequestService;
 
     @GetMapping("/vendors/pending")
     public ResponseEntity<List<User>> getPendingVendors() {
@@ -108,6 +116,28 @@ public class AdminController {
                 orderRequestService.resolveByAdmin(requestId, principal.getName(), body));
     }
 
+    @GetMapping("/analytics/overview")
+    public ResponseEntity<AdminPlatformOverviewDto> getPlatformOverview() {
+        return ResponseEntity.ok(adminAnalyticsService.getOverview());
+    }
+
+    @GetMapping("/payout-requests")
+    public ResponseEntity<Page<PayoutRequestResponseDto>> getPayoutRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(payoutRequestService.getAllRequests(page, size, status));
+    }
+
+    @PatchMapping("/payout-requests/{requestId}/resolve")
+    public ResponseEntity<PayoutRequestResponseDto> resolvePayoutRequest(
+            @PathVariable Long requestId,
+            @Valid @RequestBody PayoutRequestResolveDto body,
+            java.security.Principal principal) {
+        return ResponseEntity.ok(
+                payoutRequestService.resolveByAdmin(requestId, principal.getName(), body));
+    }
+
     @GetMapping("/activity")
     public ResponseEntity<Page<ActivityEventResponse>> getRecentActivity(
             @RequestParam(defaultValue = "0") int page,
@@ -126,6 +156,17 @@ public class AdminController {
             java.security.Principal principal) {
         try {
             return ResponseEntity.ok(couponService.createCoupon(request, principal.getName()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/coupons/{couponId}")
+    public ResponseEntity<?> updateCoupon(
+            @PathVariable Long couponId,
+            @RequestBody CouponUpdateRequest request) {
+        try {
+            return ResponseEntity.ok(couponService.updateCoupon(couponId, request));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

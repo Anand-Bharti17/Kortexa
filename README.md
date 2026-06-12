@@ -76,7 +76,7 @@ npm run dev
 | **Analytics** | `/vendor?tab=stats` | Revenue and per-product sales performance |
 | **Fulfillment** | `/vendor?tab=fulfillment` | Mark owned line items **Shipped** → **Delivered** |
 | **Cancel / return requests** | `/vendor?tab=requests` | Approve or reject customer cancellation and return requests for your products |
-| **Wallet** | `/vendor?tab=wallet` | Balance and recent ledger entries (10% platform commission) |
+| **Wallet** | `/vendor?tab=wallet` | Balance, ledger, and **withdrawal requests** (10% platform commission) |
 
 ### Admins
 
@@ -85,7 +85,9 @@ npm run dev
 | **Dashboard** | `/admin` | User/vendor oversight, **recent activity feed** |
 | **All orders** | `/admin/orders` | Paginated platform-wide orders with customer, seller, shipping, and line-item detail |
 | **Order requests** | `/admin/order-requests` | Resolve cancellation and return requests platform-wide |
-| **Coupons** | Admin dashboard | Create and manage discount coupons |
+| **Analytics** | `/admin/analytics` | GMV, daily orders, top categories, platform commission estimate |
+| **Coupons** | `/admin/coupons` | Create, activate, and deactivate promo codes |
+| **Vendor payouts** | `/admin/payouts` | Approve or reject vendor withdrawal requests |
 | **RBAC** | — | Roles: `CUSTOMER`, `VENDOR`, `ADMIN` |
 
 ### Platform mechanics
@@ -259,6 +261,8 @@ The app expects the API at `http://localhost:8080/api`.
 | PATCH | `/api/orders/{id}/status` | `PAID` → `SHIPPED` → `DELIVERED` |
 | PATCH | `/api/orders/requests/{id}/resolve` | Approve or reject a request |
 | GET | `/api/vendor/settlement` | Wallet balance + recent ledger |
+| GET | `/api/vendor/payout-requests` | Vendor's withdrawal history |
+| POST | `/api/vendor/payout-requests` | Request withdrawal from wallet balance |
 
 ### Admin (JWT, role `ADMIN`)
 
@@ -268,6 +272,12 @@ The app expects the API at `http://localhost:8080/api`.
 | GET | `/api/admin/orders` | Paginated all orders (`page`, `size`) |
 | GET | `/api/admin/order-requests` | Paginated cancel/return requests (`status` filter optional) |
 | PATCH | `/api/admin/order-requests/{id}/resolve` | Approve or reject any request |
+| GET | `/api/admin/analytics/overview` | GMV, orders, top categories, 7-day chart |
+| GET | `/api/admin/coupons` | List all coupons |
+| POST | `/api/admin/coupons` | Create coupon |
+| PATCH | `/api/admin/coupons/{id}` | Update coupon (active, description, max uses) |
+| GET | `/api/admin/payout-requests` | Paginated vendor withdrawal queue |
+| PATCH | `/api/admin/payout-requests/{id}/resolve` | Approve (deduct wallet) or reject |
 | GET | `/api/admin/activity` | Recent platform activity events |
 
 ### Auth
@@ -297,6 +307,7 @@ Flyway scripts live in `kortexa-backend/src/main/resources/db/migration/`.
 | **V10** | Order requests (cancel / return workflow) |
 | **V11** | Review moderation (`flagged`, `moderation_note`) |
 | **V12** | PostgreSQL GIN full-text search index on products |
+| **V13** | Vendor payout withdrawal requests |
 
 ---
 
@@ -378,12 +389,24 @@ See [kortexa-backend/SECURITY.md](kortexa-backend/SECURITY.md) for the full chec
 
 ## Changelog
 
-### Phase 5 — AI & discovery (latest)
+### Phase 6 — Catalog depth (planned)
+
+- Product variants (size/color), image galleries, MRP vs sale price
+- Verified-purchase reviews and seller ratings
+- In-app customer notifications (order updates in UI)
+
+### Phase 5 — AI & discovery
 
 - AI **review moderation** on submit; flagged reviews hidden from catalog
 - **AI cart assistant** — budget-based gift bundle suggestions on Cart page
 - **Smarter recommendations** — blends purchase history, FBT, trending, and recently viewed
 - **PostgreSQL full-text search** (V12 GIN index) for catalog queries
+
+### Phase 4 — Vendor & platform ops (latest)
+
+- **Admin analytics** — GMV, revenue today, 7-day order chart, top categories
+- **Coupon management UI** — create and toggle coupons at `/admin/coupons`
+- **Vendor payouts** — withdrawal requests with admin approval and wallet deduction
 
 ### Returns & cancellations
 

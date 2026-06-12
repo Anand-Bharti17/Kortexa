@@ -13,6 +13,9 @@ import VendorDashboard from "./pages/VendorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminOrders from "./pages/AdminOrders";
 import AdminOrderRequests from "./pages/AdminOrderRequests";
+import AdminAnalytics from "./pages/AdminAnalytics";
+import AdminCoupons from "./pages/AdminCoupons";
+import AdminPayouts from "./pages/AdminPayouts";
 import ProductDetail from "./pages/ProductDetail";
 import Profile from "./pages/Profile";
 import Wishlist from "./pages/Wishlist";
@@ -39,6 +42,9 @@ function App() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/order-requests" element={<AdminOrderRequests />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/coupons" element={<AdminCoupons />} />
+              <Route path="/admin/payouts" element={<AdminPayouts />} />
             </Routes>
           </main>
           <Footer />

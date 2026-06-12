@@ -37,6 +37,9 @@ export default function AdminDashboard() {
     COUPON_APPLIED: "bg-orange-100 text-orange-800",
     ADDRESS_SAVED: "bg-teal-100 text-teal-800",
     COUPON_CREATED: "bg-purple-100 text-purple-800",
+    PAYOUT_REQUESTED: "bg-violet-100 text-violet-800",
+    PAYOUT_APPROVED: "bg-emerald-100 text-emerald-800",
+    PAYOUT_REJECTED: "bg-red-100 text-red-800",
   };
 
   // Redirect if not admin
