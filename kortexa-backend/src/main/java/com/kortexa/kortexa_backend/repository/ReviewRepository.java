@@ -22,4 +22,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // COALESCE ensures it returns 0.0 instead of null if there are no reviews yet.
     @Query("SELECT COALESCE(AVG(r.rating), 0.0) FROM Review r WHERE r.product.id = :productId AND r.flagged = false")
     Double getAverageRatingForProduct(@Param("productId") Long productId);
+
+    @Query("""
+            SELECT COALESCE(AVG(r.rating), 0.0), COUNT(r)
+            FROM Review r
+            JOIN r.product p
+            WHERE p.vendor.id = :vendorId AND r.flagged = false
+            """)
+    Object[] getVendorRatingStats(@Param("vendorId") Long vendorId);
 }

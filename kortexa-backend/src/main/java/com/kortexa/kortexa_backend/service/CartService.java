@@ -6,7 +6,9 @@ import com.kortexa.kortexa_backend.model.*;
 import com.kortexa.kortexa_backend.repository.AddressRepository;
 import com.kortexa.kortexa_backend.repository.CartRepository;
 import com.kortexa.kortexa_backend.repository.CouponRepository;
+import com.kortexa.kortexa_backend.model.ProductVariant;
 import com.kortexa.kortexa_backend.repository.ProductRepository;
+import com.kortexa.kortexa_backend.repository.ProductVariantRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class CartService {
     private final CouponRepository couponRepository;
     private final AddressRepository addressRepository;
     private final ActivityService activityService;
+    private final ProductVariantRepository productVariantRepository;
 
     public Cart getOrCreateCart(String email) {
         return cartRepository.findByUserEmail(email).orElseGet(() -> {
@@ -63,25 +66,38 @@ public class CartService {
                     return new RuntimeException("Product not found");
                 });
 
+        ProductVariant variant = null;
+        int availableStock = product.getStockQuantity();
+        if (request.getVariantId() != null) {
+            variant = productVariantRepository.findByIdAndProductId(request.getVariantId(), product.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Variant not found for this product"));
+            availableStock = variant.getStockQuantity();
+        }
+
+        final ProductVariant selectedVariant = variant;
         Optional<CartItem> existingItem = cart.getItems().stream()
-                .filter(item -> item.getProduct().getId().equals(product.getId()))
+                .filter(item -> item.getProduct().getId().equals(product.getId())
+                        && ((item.getVariant() == null && selectedVariant == null)
+                        || (item.getVariant() != null && selectedVariant != null
+                        && item.getVariant().getId().equals(selectedVariant.getId()))))
                 .findFirst();
 
         if (existingItem.isPresent()) {
             CartItem item = existingItem.get();
             int newQty = item.getQuantity() + request.getQuantity();
-            if (newQty > product.getStockQuantity()) {
+            if (newQty > availableStock) {
                 throw new IllegalArgumentException(
-                        "Only " + product.getStockQuantity() + " units available for " + product.getName());
+                        "Only " + availableStock + " units available for " + product.getName());
             }
             item.setQuantity(newQty);
         } else {
-            if (request.getQuantity() > product.getStockQuantity()) {
+            if (request.getQuantity() > availableStock) {
                 throw new IllegalArgumentException(
-                        "Only " + product.getStockQuantity() + " units available for " + product.getName());
+                        "Only " + availableStock + " units available for " + product.getName());
             }
             CartItem newItem = CartItem.builder()
                     .product(product)
+                    .variant(variant)
                     .quantity(request.getQuantity())
                     .build();
             cart.addItem(newItem);
@@ -167,8 +183,16 @@ public class CartService {
 
     private BigDecimal calculateSubtotal(Cart cart) {
         return cart.getItems().stream()
-                .map(item -> item.getProduct().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .map(item -> lineUnitPrice(item).multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal lineUnitPrice(CartItem item) {
+        BigDecimal price = item.getProduct().getPrice();
+        if (item.getVariant() != null && item.getVariant().getPriceAdjustment() != null) {
+            price = price.add(item.getVariant().getPriceAdjustment());
+        }
+        return price;
     }
 
     private void recalculateTotal(Cart cart) {

@@ -21,6 +21,10 @@ public class CartItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "variant_id")
+    private ProductVariant variant;
+
     // Link back to the Cart that holds this item
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id", nullable = false)

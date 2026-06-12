@@ -389,11 +389,14 @@ See [kortexa-backend/SECURITY.md](kortexa-backend/SECURITY.md) for the full chec
 
 ## Changelog
 
-### Phase 6 — Catalog depth (planned)
+### Phase 6 — Catalog depth (latest)
 
-- Product variants (size/color), image galleries, MRP vs sale price
-- Verified-purchase reviews and seller ratings
-- In-app customer notifications (order updates in UI)
+- **MRP vs sale price** — list and detail views show strikethrough MRP and discount badge when MRP exceeds sale price
+- **Image galleries** — `product_images` table; PDP thumbnail strip from `GET /api/products/{id}/detail`
+- **Variants** — size/color/label options with per-variant stock and price adjustments; variant-aware add-to-cart
+- **Verified-purchase reviews** — badge on reviews when customer has a delivered order for that product
+- **Seller ratings** — aggregate vendor rating on product detail page
+- **In-app notifications** — bell in navbar; order paid/shipped/delivered, cancel/return resolution, payout approval/rejection (V14 migration)
 
 ### Phase 5 — AI & discovery
 
@@ -402,7 +405,7 @@ See [kortexa-backend/SECURITY.md](kortexa-backend/SECURITY.md) for the full chec
 - **Smarter recommendations** — blends purchase history, FBT, trending, and recently viewed
 - **PostgreSQL full-text search** (V12 GIN index) for catalog queries
 
-### Phase 4 — Vendor & platform ops (latest)
+### Phase 4 — Vendor & platform ops
 
 - **Admin analytics** — GMV, revenue today, 7-day order chart, top categories
 - **Coupon management UI** — create and toggle coupons at `/admin/coupons`

@@ -36,6 +36,7 @@ public class OrderService {
     private final LedgerService ledgerService;
     private final CartService cartService;
     private final ActivityService activityService;
+    private final NotificationService notificationService;
 
     @Transactional
     public Order checkoutCart(String customerEmail) {
@@ -238,6 +239,14 @@ public class OrderService {
                 "Paid order #" + savedOrder.getId() + " (₹" + savedOrder.getTotalAmount() + ")",
                 "ORDER", savedOrder.getId());
 
+        notificationService.notifyUser(
+                customerEmail,
+                "Order confirmed",
+                "Your order #" + savedOrder.getId() + " is confirmed. Total: ₹" + savedOrder.getTotalAmount(),
+                "ORDER_PAID",
+                "ORDER",
+                savedOrder.getId());
+
         String kafkaPayload = customerEmail + "|" + savedOrder.getId() + "|" + savedOrder.getTotalAmount().toString();
         log.info("[KAFKA PRODUCER] Sending paid order event to topic='order-emails': orderId={}, customer={}",
                 savedOrder.getId(), customerEmail);
@@ -410,6 +419,15 @@ public class OrderService {
 
         String statusPayload = customerEmail + "|" + orderId + "|" + next + "|" + order.getTotalAmount();
         kafkaTemplate.send("order-status-emails", statusPayload);
+
+        String statusLabel = next == OrderStatus.SHIPPED ? "shipped" : "delivered";
+        notificationService.notifyUser(
+                customerEmail,
+                "Order " + statusLabel,
+                "Order #" + orderId + " has been " + statusLabel + ".",
+                "ORDER_" + next.name(),
+                "ORDER",
+                orderId);
 
         return saved;
     }

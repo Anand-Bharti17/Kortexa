@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ShoppingCart,
@@ -7,6 +7,7 @@ import {
   Sparkles,
   Store,
   Heart,
+  BadgeCheck,
 } from "lucide-react";
 import api from "../services/api";
 import useCartStore from "../store/useCartStore";
@@ -14,11 +15,11 @@ import useAuthStore from "../store/useAuthStore";
 import useWishlistStore from "../store/useWishlistStore";
 import { useToast } from "../components/ui/Toast";
 import StarRating from "../components/ui/StarRating";
+import PriceDisplay from "../components/ui/PriceDisplay";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import RecentlyViewed from "../components/RecentlyViewed";
 import FrequentlyBoughtTogether from "../components/FrequentlyBoughtTogether";
 import AiProductChat from "../components/AiProductChat";
-import { formatPrice } from "../utils/currency";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -34,10 +35,23 @@ export default function ProductDetail() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewSummary, setReviewSummary] = useState("");
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const [activeImage, setActiveImage] = useState(0);
 
   const addToCart = useCartStore((state) => state.addToCart);
   const { isAuthenticated, userRole } = useAuthStore();
   const { fetchWishlistIds, isWishlisted, toggleWishlist } = useWishlistStore();
+
+  const selectedVariant = useMemo(
+    () => product?.variants?.find((v) => v.id === selectedVariantId) ?? null,
+    [product, selectedVariantId],
+  );
+
+  const displayPrice = selectedVariant?.effectivePrice ?? product?.price;
+  const hasVariants = (product?.variants?.length ?? 0) > 0;
+  const availableStock = hasVariants
+    ? selectedVariant?.stockQuantity ?? 0
+    : product?.stockQuantity ?? 0;
 
   useEffect(() => {
     fetchProductDetails();
@@ -49,12 +63,20 @@ export default function ProductDetail() {
     }
   }, [isAuthenticated, fetchWishlistIds]);
 
+  useEffect(() => {
+    if (product?.variants?.length === 1) {
+      setSelectedVariantId(product.variants[0].id);
+    }
+  }, [product]);
+
   const fetchProductDetails = async () => {
     try {
       setLoading(true);
       setError("");
+      setSelectedVariantId(null);
+      setActiveImage(0);
       const [productRes, reviewsRes] = await Promise.all([
-        api.get(`/products/${id}`),
+        api.get(`/products/${id}/detail`),
         api.get(`/reviews/product/${id}`),
       ]);
       setProduct(productRes.data);
@@ -87,17 +109,32 @@ export default function ProductDetail() {
       return;
     }
 
+    if (hasVariants && !selectedVariantId) {
+      showToast("Please select a variant", "error");
+      return;
+    }
+
     try {
       setAdding(true);
-      await api.post("/cart/add", {
+      const payload = {
         productId: product.id,
         quantity: parseInt(quantity, 10),
-      });
-      addToCart(product, quantity);
+      };
+      if (selectedVariantId) {
+        payload.variantId = selectedVariantId;
+      }
+      await api.post("/cart/add", payload);
+      addToCart(
+        { ...product, price: displayPrice, variantId: selectedVariantId },
+        quantity,
+      );
       showToast(`Added ${quantity} item(s) to cart`);
     } catch (err) {
       console.error("Failed to add to cart", err);
-      showToast("Could not add item. Please try again.", "error");
+      showToast(
+        err.response?.data?.error || "Could not add item. Please try again.",
+        "error",
+      );
     } finally {
       setAdding(false);
     }
@@ -146,8 +183,14 @@ export default function ProductDetail() {
     );
   }
 
-  const stockPct = Math.min((product.stockQuantity / 100) * 100, 100);
-  const inStock = product.stockQuantity > 0;
+  const gallery =
+    product.galleryImages?.length > 0
+      ? product.galleryImages
+      : [product.imageUrl || "https://via.placeholder.com/600"];
+
+  const stockPct = Math.min((availableStock / 100) * 100, 100);
+  const inStock = availableStock > 0;
+  const canAdd = inStock && (!hasVariants || selectedVariantId);
 
   return (
     <div className="space-y-12">
@@ -164,11 +207,33 @@ export default function ProductDetail() {
         <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
           <div className="aspect-square bg-slate-100 sm:aspect-[4/3] lg:aspect-square">
             <img
-              src={product.imageUrl || "https://via.placeholder.com/600"}
+              src={gallery[activeImage]}
               alt={product.name}
               className="h-full w-full object-cover"
             />
           </div>
+          {gallery.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto border-t border-slate-100 p-3">
+              {gallery.map((url, idx) => (
+                <button
+                  key={url + idx}
+                  type="button"
+                  onClick={() => setActiveImage(idx)}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                    activeImage === idx
+                      ? "border-indigo-600"
+                      : "border-transparent opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <img
+                    src={url}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col">
@@ -214,9 +279,57 @@ export default function ProductDetail() {
             </div>
           )}
 
-          <p className="mt-6 text-4xl font-bold text-slate-900">
-            {formatPrice(product.price)}
-          </p>
+          <div className="mt-6">
+            <PriceDisplay
+              price={displayPrice}
+              mrp={product.mrp}
+              size="lg"
+            />
+            {selectedVariant?.priceAdjustment != null &&
+              Number(selectedVariant.priceAdjustment) !== 0 && (
+                <p className="mt-1 text-sm text-slate-500">
+                  Includes variant adjustment of{" "}
+                  {Number(selectedVariant.priceAdjustment) > 0 ? "+" : ""}
+                  ₹{selectedVariant.priceAdjustment}
+                </p>
+              )}
+          </div>
+
+          {hasVariants && (
+            <div className="mt-6">
+              <p className="mb-2 text-sm font-semibold text-slate-700">
+                Select option
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {product.variants.map((v) => {
+                  const out = v.stockQuantity <= 0;
+                  const selected = selectedVariantId === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      disabled={out}
+                      onClick={() => {
+                        setSelectedVariantId(v.id);
+                        setQuantity(1);
+                      }}
+                      className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
+                        selected
+                          ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                          : out
+                            ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400 line-through"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300"
+                      }`}
+                    >
+                      {v.label}
+                      {v.size ? ` · ${v.size}` : ""}
+                      {v.color ? ` · ${v.color}` : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
             <div className="flex items-center justify-between text-sm">
@@ -224,23 +337,27 @@ export default function ProductDetail() {
               <span
                 className={`font-bold ${inStock ? "text-emerald-600" : "text-red-600"}`}
               >
-                {inStock
-                  ? `${product.stockQuantity} in stock`
-                  : "Out of stock"}
+                {hasVariants && !selectedVariantId
+                  ? "Select a variant"
+                  : inStock
+                    ? `${availableStock} in stock`
+                    : "Out of stock"}
               </span>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  product.stockQuantity > 10
-                    ? "bg-emerald-500"
-                    : product.stockQuantity > 0
-                      ? "bg-amber-500"
-                      : "bg-red-500"
-                }`}
-                style={{ width: `${stockPct}%` }}
-              />
-            </div>
+            {canAdd && (
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    availableStock > 10
+                      ? "bg-emerald-500"
+                      : availableStock > 0
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                  }`}
+                  style={{ width: `${stockPct}%` }}
+                />
+              </div>
+            )}
           </div>
 
           <p className="mt-6 leading-relaxed text-slate-600">
@@ -251,13 +368,25 @@ export default function ProductDetail() {
           {product.vendorEmail && (
             <div className="mt-4 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-4 py-3">
               <Store size={20} className="text-indigo-600" />
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
                   Sold by
                 </p>
-                <p className="text-sm font-medium text-slate-800">
+                <p className="truncate text-sm font-medium text-slate-800">
                   {product.vendorEmail}
                 </p>
+                {product.vendorReviewCount > 0 && (
+                  <div className="mt-1">
+                    <StarRating
+                      rating={product.vendorAverageRating}
+                      reviewCount={product.vendorReviewCount}
+                      size="sm"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Seller rating across all products
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -268,7 +397,7 @@ export default function ProductDetail() {
                 <button
                   type="button"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={!inStock}
+                  disabled={!canAdd}
                   className="px-4 py-3 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
                   −
@@ -281,24 +410,25 @@ export default function ProductDetail() {
                       Math.max(
                         1,
                         Math.min(
-                          product.stockQuantity,
+                          availableStock || 1,
                           parseInt(e.target.value, 10) || 1,
                         ),
                       ),
                     )
                   }
                   min={1}
-                  max={product.stockQuantity}
-                  className="w-14 border-x border-slate-200 py-3 text-center focus:outline-none"
+                  max={availableStock || 1}
+                  disabled={!canAdd}
+                  className="w-14 border-x border-slate-200 py-3 text-center focus:outline-none disabled:opacity-40"
                 />
                 <button
                   type="button"
                   onClick={() =>
                     setQuantity(
-                      Math.min(product.stockQuantity, quantity + 1),
+                      Math.min(availableStock || 1, quantity + 1),
                     )
                   }
-                  disabled={!inStock}
+                  disabled={!canAdd}
                   className="px-4 py-3 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
                   +
@@ -312,7 +442,7 @@ export default function ProductDetail() {
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={!inStock || adding}
+              disabled={!canAdd || adding}
               className="btn-primary w-full !py-3.5"
             >
               {adding ? (
@@ -424,9 +554,17 @@ export default function ProductDetail() {
                         "U"}
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-900">
-                        {review.customer?.name || review.customer?.email}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-slate-900">
+                          {review.customer?.name || review.customer?.email}
+                        </p>
+                        {review.verifiedPurchase && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+                            <BadgeCheck size={12} />
+                            Verified purchase
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500">
                         {new Date(review.createdAt).toLocaleDateString()}
                       </p>

@@ -27,6 +27,7 @@ public class OrderRequestService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final ActivityService activityService;
+    private final NotificationService notificationService;
 
     @Transactional
     public OrderRequestResponseDto submitCancelRequest(Long orderId, String customerEmail, String reason) {
@@ -144,6 +145,16 @@ public class OrderRequestService {
                             + " order #" + order.getId(),
                     "ORDER",
                     order.getId());
+
+            String customerEmail = order.getCustomer() != null ? order.getCustomer().getEmail() : null;
+            notificationService.notifyUser(
+                    customerEmail,
+                    "Request approved",
+                    "Your " + request.getRequestType().name().toLowerCase()
+                            + " request for order #" + order.getId() + " was approved.",
+                    "ORDER_REQUEST_APPROVED",
+                    "ORDER",
+                    order.getId());
         } else {
             request.setStatus(OrderRequestStatus.REJECTED);
             activityService.log(
@@ -152,6 +163,16 @@ public class OrderRequestService {
                     isAdmin ? "ADMIN" : "VENDOR",
                     "Rejected " + request.getRequestType().name().toLowerCase()
                             + " request for order #" + order.getId(),
+                    "ORDER",
+                    order.getId());
+
+            String customerEmail = order.getCustomer() != null ? order.getCustomer().getEmail() : null;
+            notificationService.notifyUser(
+                    customerEmail,
+                    "Request rejected",
+                    "Your " + request.getRequestType().name().toLowerCase()
+                            + " request for order #" + order.getId() + " was rejected.",
+                    "ORDER_REQUEST_REJECTED",
                     "ORDER",
                     order.getId());
         }

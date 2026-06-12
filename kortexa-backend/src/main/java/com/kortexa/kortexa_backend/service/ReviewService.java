@@ -4,6 +4,7 @@ import com.kortexa.kortexa_backend.dto.ReviewRequest;
 import com.kortexa.kortexa_backend.model.Product;
 import com.kortexa.kortexa_backend.model.Review;
 import com.kortexa.kortexa_backend.model.User;
+import com.kortexa.kortexa_backend.repository.OrderRepository;
 import com.kortexa.kortexa_backend.repository.ProductRepository;
 import com.kortexa.kortexa_backend.repository.ReviewRepository;
 import com.kortexa.kortexa_backend.repository.UserRepository;
@@ -23,6 +24,7 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final AiService aiService;
     private final ActivityService activityService;
+    private final OrderRepository orderRepository;
 
     @org.springframework.cache.annotation.CacheEvict(value = "review_summaries", key = "#productId")
     public Review addReview(Long productId, String customerEmail, ReviewRequest request) {
@@ -59,6 +61,9 @@ public class ReviewService {
                     .build();
             log.info("Creating new review");
         }
+
+        boolean verified = orderRepository.hasDeliveredPurchase(productId, customerEmail);
+        review.setVerifiedPurchase(verified);
 
         var moderation = aiService.moderateReview(request.getComment(), request.getRating());
         review.setFlagged(moderation.flagged());

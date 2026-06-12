@@ -8,20 +8,34 @@ const useCartStore = create(
 
       addToCart: (product, quantity = 1) => {
         const currentItems = get().cartItems;
+        const lineKey = product.variantId
+          ? `${product.id}-${product.variantId}`
+          : String(product.id);
         const existingItem = currentItems.find(
-          (item) => item.id === product.id,
+          (item) =>
+            (item.variantId
+              ? `${item.id}-${item.variantId}`
+              : String(item.id)) === lineKey,
         );
 
         if (existingItem) {
           set({
-            cartItems: currentItems.map((item) =>
-              item.id === product.id
-                ? { ...item, quantity: item.quantity + parseInt(quantity) }
-                : item,
-            ),
+            cartItems: currentItems.map((item) => {
+              const key = item.variantId
+                ? `${item.id}-${item.variantId}`
+                : String(item.id);
+              return key === lineKey
+                ? { ...item, quantity: item.quantity + parseInt(quantity, 10) }
+                : item;
+            }),
           });
         } else {
-          set({ cartItems: [...currentItems, { ...product, quantity: parseInt(quantity) }] });
+          set({
+            cartItems: [
+              ...currentItems,
+              { ...product, quantity: parseInt(quantity, 10) },
+            ],
+          });
         }
       },
 

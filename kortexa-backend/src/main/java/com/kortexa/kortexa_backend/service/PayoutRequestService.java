@@ -26,6 +26,7 @@ public class PayoutRequestService {
     private final WalletRepository walletRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final ActivityService activityService;
+    private final NotificationService notificationService;
 
     @Transactional
     public PayoutRequestResponseDto submit(String vendorEmail, BigDecimal amount, String paymentNote) {
@@ -125,6 +126,14 @@ public class PayoutRequestService {
                     "Approved payout of ₹" + request.getAmount() + " for " + vendorEmail,
                     "PAYOUT",
                     request.getId());
+
+            notificationService.notifyUser(
+                    vendorEmail,
+                    "Payout approved",
+                    "Your withdrawal of ₹" + request.getAmount() + " was approved.",
+                    "PAYOUT_APPROVED",
+                    "PAYOUT",
+                    request.getId());
         } else {
             request.setStatus(PayoutRequestStatus.REJECTED);
             activityService.log(
@@ -132,6 +141,15 @@ public class PayoutRequestService {
                     adminEmail,
                     "ADMIN",
                     "Rejected payout request #" + request.getId(),
+                    "PAYOUT",
+                    request.getId());
+
+            String vendorEmail = request.getVendor() != null ? request.getVendor().getEmail() : null;
+            notificationService.notifyUser(
+                    vendorEmail,
+                    "Payout rejected",
+                    "Your withdrawal request was rejected.",
+                    "PAYOUT_REJECTED",
                     "PAYOUT",
                     request.getId());
         }

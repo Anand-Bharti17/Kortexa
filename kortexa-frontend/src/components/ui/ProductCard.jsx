@@ -1,6 +1,6 @@
 import { ShoppingCart, Heart } from "lucide-react";
 import StarRating from "./StarRating";
-import { formatPrice } from "../../utils/currency";
+import PriceDisplay from "./PriceDisplay";
 
 export default function ProductCard({
   product,
@@ -74,13 +74,11 @@ export default function ProductCard({
         )}
 
         <div className="mt-3 flex items-center justify-between gap-2">
-          <span
-            className={`font-bold text-slate-900 ${
-              compact ? "text-sm" : "text-xl"
-            }`}
-          >
-            {formatPrice(product.price)}
-          </span>
+          <PriceDisplay
+            price={product.price}
+            mrp={product.mrp}
+            size={compact ? "sm" : "md"}
+          />
           {onAddToCart && (
             <button
               type="button"

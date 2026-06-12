@@ -69,6 +69,7 @@ public class SecurityConfig {
                             .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
                             .requestMatchers("/api/wishlist/**").hasRole("CUSTOMER")
                             .requestMatchers(HttpMethod.POST, "/api/ai/cart-suggest").hasRole("CUSTOMER")
+                            .requestMatchers("/api/notifications/**").authenticated()
                             .requestMatchers("/api/orders/vendor/**").hasRole("VENDOR")
                             .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").hasRole("VENDOR")
                             .requestMatchers(HttpMethod.PATCH, "/api/orders/requests/*/resolve").hasRole("VENDOR")

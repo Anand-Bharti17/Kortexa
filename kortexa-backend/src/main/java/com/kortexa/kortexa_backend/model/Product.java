@@ -45,6 +45,9 @@ public class Product implements Serializable{
     @Column(nullable = false)
     private BigDecimal price;
 
+    @PositiveOrZero(message = "MRP cannot be negative")
+    private BigDecimal mrp;
+
     @PositiveOrZero(message = "Stock quantity cannot be negative")
     @Column(name = "stock_quantity", nullable = false)
     private Integer stockQuantity;

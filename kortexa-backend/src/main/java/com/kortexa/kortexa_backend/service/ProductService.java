@@ -1,7 +1,15 @@
 package com.kortexa.kortexa_backend.service;
 
+import com.kortexa.kortexa_backend.dto.ProductDetailDto;
 import com.kortexa.kortexa_backend.dto.ProductRequest;
 import com.kortexa.kortexa_backend.dto.ProductSuggestion;
+import com.kortexa.kortexa_backend.dto.ProductVariantDto;
+import com.kortexa.kortexa_backend.dto.ProductVariantRequest;
+import com.kortexa.kortexa_backend.model.ProductImage;
+import com.kortexa.kortexa_backend.model.ProductVariant;
+import com.kortexa.kortexa_backend.repository.ProductImageRepository;
+import com.kortexa.kortexa_backend.repository.ProductVariantRepository;
+import com.kortexa.kortexa_backend.repository.ReviewRepository;
 import com.kortexa.kortexa_backend.model.AccountStatus;
 import com.kortexa.kortexa_backend.model.Product;
 import com.kortexa.kortexa_backend.model.Role;
@@ -45,6 +53,9 @@ public class ProductService {
     private final DiscoveryService discoveryService;
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
     private final ActivityService activityService;
+    private final ProductImageRepository productImageRepository;
+    private final ProductVariantRepository productVariantRepository;
+    private final ReviewRepository reviewRepository;
 
     private static final String RECENTLY_VIEWED_KEY_PREFIX = "recently_viewed:";
 
@@ -107,6 +118,7 @@ public class ProductService {
                 .name(request.name())
                 .description(finalDescription) // <-- Using the Gemini text!
                 .price(request.price())
+                .mrp(request.mrp())
                 .stockQuantity(request.stockQuantity())
                 .category(request.category())
                 .imageUrl(uploadedImageUrl)    // <-- Using the Cloudinary URL!
@@ -450,6 +462,7 @@ public class ProductService {
         // 4. Update product fields
         product.setName(request.name());
         product.setPrice(request.price());
+        product.setMrp(request.mrp());
         product.setStockQuantity(request.stockQuantity());
         product.setCategory(request.category());
         if (request.featured() != null) {
@@ -515,5 +528,85 @@ public class ProductService {
         Product updated = productRepository.save(product);
         log.info("Stock updated successfully: productId={}, newQuantity={}, vendor={}", updated.getId(), quantity, userEmail);
         return updated;
+    }
+
+    public ProductDetailDto getProductDetail(Long id, String userEmail) {
+        Product product = getProductById(id, userEmail);
+        ProductDetailDto detail = ProductDetailDto.from(product);
+
+        List<String> gallery = new ArrayList<>();
+        if (product.getImageUrl() != null && !product.getImageUrl().isBlank()) {
+            gallery.add(product.getImageUrl());
+        }
+        productImageRepository.findByProductIdOrderBySortOrderAsc(id).stream()
+                .map(ProductImage::getImageUrl)
+                .filter(url -> !gallery.contains(url))
+                .forEach(gallery::add);
+        detail.setGalleryImages(gallery);
+
+        List<ProductVariantDto> variants = productVariantRepository.findByProductIdOrderByIdAsc(id).stream()
+                .map(v -> ProductVariantDto.builder()
+                        .id(v.getId())
+                        .label(v.getLabel())
+                        .size(v.getSize())
+                        .color(v.getColor())
+                        .stockQuantity(v.getStockQuantity())
+                        .priceAdjustment(v.getPriceAdjustment())
+                        .effectivePrice(product.getPrice().add(
+                                v.getPriceAdjustment() != null ? v.getPriceAdjustment() : BigDecimal.ZERO))
+                        .build())
+                .toList();
+        detail.setVariants(variants);
+
+        if (product.getVendor() != null) {
+            Object[] stats = reviewRepository.getVendorRatingStats(product.getVendor().getId());
+            if (stats != null && stats.length >= 2) {
+                detail.setVendorAverageRating(stats[0] != null ? ((Number) stats[0]).doubleValue() : 0.0);
+                detail.setVendorReviewCount(stats[1] != null ? ((Number) stats[1]).intValue() : 0);
+            }
+        }
+
+        return detail;
+    }
+
+    @CacheEvict(value = "products", allEntries = true)
+    public ProductVariant addVariant(Long productId, ProductVariantRequest request, String userEmail) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        assertVendorOwns(product, userEmail);
+
+        BigDecimal adjustment = request.getPriceAdjustment() != null
+                ? request.getPriceAdjustment() : BigDecimal.ZERO;
+
+        return productVariantRepository.save(ProductVariant.builder()
+                .product(product)
+                .label(request.getLabel().trim())
+                .size(request.getSize())
+                .color(request.getColor())
+                .stockQuantity(request.getStockQuantity())
+                .priceAdjustment(adjustment)
+                .build());
+    }
+
+    @CacheEvict(value = "products", allEntries = true)
+    public ProductImage addGalleryImage(Long productId, String imageUrl, String userEmail) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        assertVendorOwns(product, userEmail);
+
+        int nextOrder = productImageRepository.findByProductIdOrderBySortOrderAsc(productId).size();
+        return productImageRepository.save(ProductImage.builder()
+                .product(product)
+                .imageUrl(imageUrl)
+                .sortOrder(nextOrder)
+                .build());
+    }
+
+    private void assertVendorOwns(Product product, String userEmail) {
+        User vendor = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!product.getVendor().getId().equals(vendor.getId())) {
+            throw new SecurityException("You can only modify your own products.");
+        }
     }
 }

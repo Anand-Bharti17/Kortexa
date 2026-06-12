@@ -24,6 +24,7 @@ export default function VendorDashboard() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
+  const [mrp, setMrp] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [featured, setFeatured] = useState(false);
   const [imageFile, setImageFile] = useState(null);
@@ -39,7 +40,14 @@ export default function VendorDashboard() {
   const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [editPrice, setEditPrice] = useState("");
+  const [editMrp, setEditMrp] = useState("");
   const [editStockQuantity, setEditStockQuantity] = useState("");
+  const [variantLabel, setVariantLabel] = useState("");
+  const [variantSize, setVariantSize] = useState("");
+  const [variantColor, setVariantColor] = useState("");
+  const [variantStock, setVariantStock] = useState("");
+  const [variantAdjustment, setVariantAdjustment] = useState("0");
+  const [variantSaving, setVariantSaving] = useState(false);
   const [editFeatured, setEditFeatured] = useState(false);
   const [editImageFile, setEditImageFile] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
@@ -216,6 +224,7 @@ export default function VendorDashboard() {
       name: name,
       category: category,
       price: parseFloat(price),
+      mrp: mrp ? parseFloat(mrp) : null,
       stockQuantity: parseInt(stockQuantity, 10),
       featured,
     };
@@ -244,6 +253,7 @@ export default function VendorDashboard() {
       setName("");
       setCategory("");
       setPrice("");
+      setMrp("");
       setStockQuantity("");
       setFeatured(false);
       setImageFile(null);
@@ -265,7 +275,13 @@ export default function VendorDashboard() {
     setEditName(product.name);
     setEditCategory(product.category);
     setEditPrice(product.price.toString());
+    setEditMrp(product.mrp != null ? product.mrp.toString() : "");
     setEditStockQuantity(product.stockQuantity.toString());
+    setVariantLabel("");
+    setVariantSize("");
+    setVariantColor("");
+    setVariantStock("");
+    setVariantAdjustment("0");
     setEditFeatured(Boolean(product.featured));
     setEditImageFile(null);
   };
@@ -279,6 +295,7 @@ export default function VendorDashboard() {
       name: editName,
       category: editCategory,
       price: parseFloat(editPrice),
+      mrp: editMrp ? parseFloat(editMrp) : null,
       stockQuantity: parseInt(editStockQuantity, 10),
       description: editingProduct.description,
       featured: editFeatured,
@@ -314,6 +331,35 @@ export default function VendorDashboard() {
       });
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleAddVariant = async (e) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+
+    setVariantSaving(true);
+    try {
+      await api.post(`/products/${editingProduct.id}/variants`, {
+        label: variantLabel,
+        size: variantSize || null,
+        color: variantColor || null,
+        stockQuantity: parseInt(variantStock, 10),
+        priceAdjustment: parseFloat(variantAdjustment) || 0,
+      });
+      setMessage({ type: "success", text: "Variant added successfully!" });
+      setVariantLabel("");
+      setVariantSize("");
+      setVariantColor("");
+      setVariantStock("");
+      setVariantAdjustment("0");
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.response?.data?.error || "Failed to add variant.",
+      });
+    } finally {
+      setVariantSaving(false);
     }
   };
 
@@ -693,7 +739,7 @@ export default function VendorDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price (₹)
+                      Sale price (₹)
                     </label>
                     <input
                       type="number"
@@ -704,6 +750,22 @@ export default function VendorDashboard() {
                       required
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      MRP (₹) <span className="text-gray-400 font-normal">optional</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={mrp}
+                      onChange={(e) => setMrp(e.target.value)}
+                      placeholder="List price for discount display"
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Stock
@@ -902,7 +964,7 @@ export default function VendorDashboard() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price (₹)
+                    Sale price (₹)
                   </label>
                   <input
                     type="number"
@@ -913,6 +975,22 @@ export default function VendorDashboard() {
                     required
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    MRP (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editMrp}
+                    onChange={(e) => setEditMrp(e.target.value)}
+                    placeholder="Optional list price"
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Stock Quantity
@@ -969,6 +1047,61 @@ export default function VendorDashboard() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-5">
+                <h3 className="mb-3 text-sm font-bold text-indigo-900">
+                  Add product variant
+                </h3>
+                <form onSubmit={handleAddVariant} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Label (e.g. Red / M)"
+                      value={variantLabel}
+                      onChange={(e) => setVariantLabel(e.target.value)}
+                      className="rounded-lg border border-gray-300 p-2.5 text-sm"
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Stock"
+                      value={variantStock}
+                      onChange={(e) => setVariantStock(e.target.value)}
+                      className="rounded-lg border border-gray-300 p-2.5 text-sm"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Size (optional)"
+                      value={variantSize}
+                      onChange={(e) => setVariantSize(e.target.value)}
+                      className="rounded-lg border border-gray-300 p-2.5 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Color (optional)"
+                      value={variantColor}
+                      onChange={(e) => setVariantColor(e.target.value)}
+                      className="rounded-lg border border-gray-300 p-2.5 text-sm"
+                    />
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Price adjustment (+/- from sale price)"
+                    value={variantAdjustment}
+                    onChange={(e) => setVariantAdjustment(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 p-2.5 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={variantSaving}
+                    className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {variantSaving ? "Adding..." : "Add variant"}
+                  </button>
+                </form>
               </div>
 
               <div className="flex space-x-3 pt-6">

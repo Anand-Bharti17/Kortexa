@@ -76,4 +76,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             ORDER BY day ASC
             """, nativeQuery = true)
     List<Object[]> dailyOrderStatsLastSevenDays();
+
+    @Query("""
+            SELECT CASE WHEN COUNT(oi) > 0 THEN true ELSE false END
+            FROM OrderItem oi
+            JOIN oi.order o
+            WHERE oi.product.id = :productId
+            AND LOWER(o.customer.email) = LOWER(:customerEmail)
+            AND o.status = com.kortexa.kortexa_backend.model.OrderStatus.DELIVERED
+            """)
+    boolean hasDeliveredPurchase(@Param("productId") Long productId,
+                                 @Param("customerEmail") String customerEmail);
 }

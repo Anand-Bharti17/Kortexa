@@ -1,7 +1,11 @@
 package com.kortexa.kortexa_backend.controller;
 
+import com.kortexa.kortexa_backend.dto.ProductDetailDto;
 import com.kortexa.kortexa_backend.dto.ProductRequest;
 import com.kortexa.kortexa_backend.dto.ProductSuggestion;
+import com.kortexa.kortexa_backend.dto.ProductVariantRequest;
+import com.kortexa.kortexa_backend.model.ProductVariant;
+import com.kortexa.kortexa_backend.model.ProductImage;
 import com.kortexa.kortexa_backend.model.Product;
 import com.kortexa.kortexa_backend.service.AiService;
 import com.kortexa.kortexa_backend.service.ImageUploadService;
@@ -151,6 +155,45 @@ public class ProductController {
         } catch (IllegalArgumentException e) {
             log.warn("Product not found: id={}", id);
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<ProductDetailDto> getProductDetail(
+            @PathVariable Long id,
+            Authentication authentication) {
+        String email = (authentication != null && authentication.isAuthenticated())
+                ? authentication.getName() : null;
+        return ResponseEntity.ok(productService.getProductDetail(id, email));
+    }
+
+    @PostMapping("/{id}/variants")
+    public ResponseEntity<?> addVariant(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductVariantRequest request,
+            Authentication authentication) {
+        try {
+            ProductVariant variant = productService.addVariant(id, request, authentication.getName());
+            return ResponseEntity.ok(variant);
+        } catch (SecurityException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/gallery")
+    public ResponseEntity<?> addGalleryImage(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        try {
+            String imageUrl = body.get("imageUrl");
+            if (imageUrl == null || imageUrl.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "imageUrl is required"));
+            }
+            ProductImage image = productService.addGalleryImage(id, imageUrl.trim(), authentication.getName());
+            return ResponseEntity.ok(image);
+        } catch (SecurityException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

@@ -16,6 +16,9 @@ public record ProductRequest(
         @PositiveOrZero(message = "Price cannot be negative")
         BigDecimal price,
 
+        @PositiveOrZero(message = "MRP cannot be negative")
+        BigDecimal mrp,
+
         @NotNull(message = "Stock quantity is required")
         @PositiveOrZero(message = "Stock quantity cannot be negative")
         Integer stockQuantity,

@@ -25,6 +25,7 @@ import useCartStore from "../store/useCartStore";
 import useWishlistStore from "../store/useWishlistStore";
 import { BRAND_NAME, BRAND_VENDOR, BRAND_ADMIN } from "../config/brand";
 import VelunoLogo from "./VelunoLogo";
+import NotificationBell from "./NotificationBell";
 
 function NavLink({ to, icon: Icon, children, onClick, badge }) {
   return (
@@ -149,18 +150,22 @@ export default function Navbar() {
               ),
             )}
             {isAuthenticated && (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="ml-2 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
-              >
-                <LogOut size={18} />
-                Logout
-              </button>
+              <>
+                <NotificationBell />
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="ml-2 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              </>
             )}
           </nav>
 
           <div className="flex items-center gap-2 lg:hidden">
+            {isAuthenticated && <NotificationBell />}
             {isAuthenticated && userRole === "CUSTOMER" && totalItems > 0 && (
               <Link
                 to="/cart"

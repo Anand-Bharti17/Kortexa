@@ -32,6 +32,10 @@ public class Review {
     @Column(name = "moderation_note", length = 500)
     private String moderationNote;
 
+    @Column(name = "verified_purchase", nullable = false)
+    @Builder.Default
+    private Boolean verifiedPurchase = false;
+
     // Link the review to the exact product being reviewed
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
